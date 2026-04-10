@@ -3,22 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Zap PRO Chat & Video</title>
+    <title>Zap PRO Ultra</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
             --green: #00a884;
             --bg: #0b141a;
             --panel: #202c33;
-            --incoming: #202c33;
             --text: #e9edef;
-            --chat-bg: #0b141a;
+            --subtext: #8696a0;
         }
 
         body {
             margin: 0;
             height: 100dvh;
-            font-family: 'Segoe UI', Arial, sans-serif;
+            font-family: 'Segoe UI', Roboto, sans-serif;
             background: var(--bg);
             color: var(--text);
             display: flex;
@@ -28,253 +27,262 @@
         /* --- LOGIN --- */
         #login {
             position: fixed; inset: 0; background: var(--bg);
-            display: flex; justify-content: center; align-items: center; z-index: 500;
+            display: flex; justify-content: center; align-items: center; z-index: 1000;
         }
-        .box { background: var(--panel); padding: 30px; border-radius: 20px; width: 85%; max-width: 320px; text-align: center;}
-        input { width: 100%; padding: 14px; margin: 10px 0; border-radius: 10px; border: none; background: #2a3942; color: white; box-sizing: border-box; }
+        .login-box { background: var(--panel); padding: 30px; border-radius: 20px; width: 85%; max-width: 320px; text-align: center; }
 
-        /* --- SIDEBAR (LISTA) --- */
+        /* --- SIDEBAR EXPANSÍVEL --- */
         #sidebar {
             width: 350px;
-            background: var(--bg);
+            background: var(--panel);
             display: flex;
             flex-direction: column;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 500;
             border-right: 1px solid rgba(255,255,255,0.1);
         }
-        .header { padding: 15px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; }
-        
-        .contact {
-            padding: 15px;
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .contact:hover { background: var(--panel); }
-        .avatar { width: 45px; height: 45px; background: #54656f; border-radius: 50%; margin-right: 15px; display: flex; align-items: center; justify-content: center; font-size: 20px;}
 
-        /* --- CHAT AREA --- */
+        /* --- ÁREA DO CHAT --- */
         #chat-container {
             flex: 1;
             display: flex;
             flex-direction: column;
-            background: var(--chat-bg);
-            position: relative;
-        }
-        #chat-header {
-            padding: 10px 20px;
-            background: var(--panel);
-            display: none; /* Só aparece quando clica no contato */
-            align-items: center;
-            justify-content: space-between;
-        }
-        .chat-actions { display: flex; gap: 20px; font-size: 20px; }
-        .chat-actions span { cursor: pointer; color: var(--green); }
-        
-        #chat-empty {
-            flex: 1; display: flex; align-items: center; justify-content: center;
-            color: #8696a0; text-align: center;
+            background: var(--bg);
+            z-index: 100;
         }
 
-        /* --- VIDEO CALL (FULLSCREEN) --- */
+        .chat-header {
+            padding: 10px 15px;
+            background: var(--panel);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 60px;
+        }
+
+        .chat-info { display: flex; align-items: center; gap: 12px; }
+        .avatar { width: 40px; height: 40px; background: #54656f; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+        /* --- VÍDEO SCREEN --- */
         #video-screen {
-            position: fixed; inset: 0; background: black;
-            display: none; z-index: 400;
+            position: fixed; inset: 0; background: #000;
+            display: none; z-index: 800;
         }
         #remoto { width: 100%; height: 100%; object-fit: cover; }
         #local {
             position: absolute; width: 100px; height: 150px;
-            top: 40px; right: 20px; border: 2px solid var(--green);
-            border-radius: 12px; object-fit: cover; z-index: 410;
+            top: 30px; right: 20px; border: 2px solid var(--green);
+            border-radius: 12px; object-fit: cover; z-index: 810;
         }
-        .call-controls {
+
+        /* --- CONTROLES --- */
+        .controls {
             position: absolute; bottom: 40px; left: 50%;
             transform: translateX(-50%); display: flex; gap: 20px;
         }
-
-        /* BOTÕES */
-        .btn-round {
+        .btn {
             width: 55px; height: 55px; border-radius: 50%; border: none;
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            font-size: 22px; color: white;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; cursor: pointer; color: white;
         }
         .btn-green { background: var(--green); }
         .btn-red { background: #ea0038; }
         .btn-gray { background: #54656f; }
 
+        /* BOTÃO MENU MOBILE */
+        #menu-toggle {
+            position: absolute; top: 15px; left: 15px; z-index: 600;
+            display: none; background: var(--green); border-radius: 50%;
+            width: 45px; height: 45px; border: none; color: white;
+        }
+
+        /* INPUTS */
+        input { 
+            width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; 
+            border: none; background: #2a3942; color: white; box-sizing: border-box; 
+        }
+
+        .contact-item {
+            padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05);
+            cursor: pointer; transition: 0.2s;
+        }
+        .contact-item:hover { background: #2a3942; }
+
+        /* RESPONSIVIDADE */
         @media (max-width: 768px) {
-            #sidebar { width: 100%; }
-            #chat-container { 
-                position: fixed; inset: 0; transform: translateX(100%); 
-                transition: 0.3s; z-index: 200; 
+            #sidebar {
+                position: absolute; left: 0; top: 0; bottom: 0;
+                width: 80%; transform: translateX(-100%);
             }
-            #chat-container.active { transform: translateX(0); }
+            #sidebar.active { transform: translateX(0); }
+            #menu-toggle { display: block; }
+            #chat-container { width: 100%; }
         }
     </style>
 </head>
 <body>
 
 <div id="login">
-    <div class="box">
-        <h2 style="color: var(--green);">Zap PRO</h2>
+    <div class="login-box">
+        <h2 style="color: var(--green)">Zap PRO</h2>
         <input id="userId" placeholder="Seu Nome">
-        <button class="btn-green" style="width:100%; padding:15px; border-radius:30px; font-weight:bold;" onclick="login()">ENTRAR</button>
+        <button class="btn-green" style="width: 100%; padding: 15px; border-radius: 30px; border: none; font-weight: bold;" onclick="login()">ENTRAR</button>
     </div>
 </div>
 
+<button id="menu-toggle" onclick="toggleSidebar()">👥</button>
+
 <div id="sidebar">
-    <div class="header">
-        <b>Conversas</b>
-        <span id="meuId" style="font-size: 12px; color: var(--green)"></span>
+    <div style="padding: 20px; background: #2a3942; text-align: center;">
+        <b>Agenda</b><br>
+        <small id="meuIdDisplay" style="color: var(--green)"></small>
     </div>
     
     <div style="padding: 15px;">
-        <button class="btn-green" style="width:100%; border-radius:10px; padding:10px;" onclick="document.getElementById('add-pop').style.display='block'">+ Novo Contato</button>
+        <button class="btn-green" style="width: 100%; border-radius: 10px; padding: 10px; border: none;" onclick="toggleAddBox()">+ Novo Contato</button>
+        <div id="add-box" style="display: none; margin-top: 10px;">
+            <input id="new-name" placeholder="Nome">
+            <input id="new-id" placeholder="ID do amigo">
+            <button class="btn-green" style="width: 100%; border-radius: 8px; border: none; padding: 8px;" onclick="addContact()">Salvar</button>
+        </div>
     </div>
 
-    <div id="add-pop" style="display:none; padding:15px; background:var(--panel)">
-        <input id="new-name" placeholder="Nome">
-        <input id="new-id" placeholder="ID do amigo">
-        <button class="btn-green" style="width:100%" onclick="addContact()">Salvar</button>
-    </div>
-
-    <div id="contatos"></div>
+    <div id="lista-contatos" style="flex: 1; overflow-y: auto;"></div>
+    
+    <button class="btn-gray" style="width: 100%; height: 50px; border: none;" onclick="toggleSidebar()" class="mobile-only">Fechar Agenda</button>
 </div>
 
 <div id="chat-container">
-    <div id="chat-header">
-        <div style="display:flex; align-items:center;">
-            <span onclick="closeChat()" style="margin-right:15px; cursor:pointer" class="mobile-only">⬅</span>
+    <div id="chat-header" class="chat-header" style="display: none;">
+        <div class="chat-info">
+            <button onclick="toggleSidebar()" style="background: none; border: none; color: var(--green); font-size: 20px;">⬅</button>
             <div class="avatar">👤</div>
-            <b id="chat-user-name">Nome</b>
+            <div id="chat-user-name"><b>Nome</b></div>
         </div>
-        <div class="chat-actions">
-            <span onclick="startCall(true)">📹</span>
-            <span onclick="startCall(false)">📞</span>
+        <div style="display: flex; gap: 15px; font-size: 22px;">
+            <span onclick="call(true)" style="cursor: pointer;">📹</span>
+            <span onclick="call(false)" style="cursor: pointer;">📞</span>
         </div>
     </div>
-
-    <div id="chat-empty">
-        <p>Selecione um contato para conversar</p>
+    <div id="empty-state" style="flex: 1; display: flex; align-items: center; justify-content: center; color: var(--subtext); text-align: center; padding: 20px;">
+        Selecione um contato na agenda lateral para começar a conversar.
     </div>
 </div>
 
 <div id="video-screen">
     <video id="remoto" autoplay playsinline></video>
     <video id="local" autoplay muted playsinline></video>
-    <div class="call-controls">
-        <button class="btn-round btn-gray" onclick="trocarCamera()">🔄</button>
-        <button class="btn-round btn-red" onclick="hangUp()">❌</button>
+    <div class="controls">
+        <button class="btn btn-gray" onclick="switchCamera()">🔄</button>
+        <button class="btn btn-red" onclick="hangup()">❌</button>
     </div>
 </div>
 
 <script>
-let peer, stream, callAtual, selectedContactId = null;
-let cameraMode = "user";
+let peer, stream, currentCall, activeContactId;
+let facingMode = "user";
 
 function login() {
     const id = document.getElementById("userId").value.trim();
     if (!id) return;
-    localStorage.setItem("user", id);
-    iniciarPeer(id);
+    localStorage.setItem("zap_user", id);
+    initPeer(id);
 }
 
-function iniciarPeer(id) {
+function initPeer(id) {
     peer = new Peer(id);
     peer.on("open", async (myId) => {
-        document.getElementById("meuId").innerText = "Meu ID: " + myId;
         document.getElementById("login").style.display = "none";
-        await initMedia();
+        document.getElementById("meuIdDisplay").innerText = "ID: " + myId;
+        await startMedia();
     });
 
     peer.on("call", call => {
-        if(confirm("Recebendo chamada de " + call.peer + ". Aceitar?")) {
+        if (confirm("Chamada recebida! Aceitar?")) {
             call.answer(stream);
             setupCall(call);
         }
     });
 }
 
-async function initMedia() {
+async function startMedia() {
     try {
-        stream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         document.getElementById("local").srcObject = stream;
-    } catch (e) { console.log("Erro mídia:", e); }
+    } catch (e) { alert("Permita o acesso à câmera e microfone"); }
 }
 
-function openChat(name, id) {
-    selectedContactId = id;
-    document.getElementById("chat-user-name").innerText = name;
-    document.getElementById("chat-header").style.display = "flex";
-    document.getElementById("chat-empty").style.display = "none";
-    document.getElementById("chat-container").classList.add("active");
+function toggleSidebar() {
+    document.getElementById("sidebar").classList.toggle("active");
 }
 
-function closeChat() {
-    document.getElementById("chat-container").classList.remove("active");
-}
-
-function startCall(withVideo) {
-    if (!selectedContactId) return;
-    document.getElementById("video-screen").style.display = "block";
-    
-    // Se for só áudio, escondemos o vídeo local por capricho
-    document.getElementById("local").style.display = withVideo ? "block" : "none";
-
-    const call = peer.call(selectedContactId, stream);
-    setupCall(call);
-}
-
-function setupCall(call) {
-    callAtual = call;
-    document.getElementById("video-screen").style.display = "block";
-    call.on("stream", s => {
-        document.getElementById("remoto").srcObject = s;
-    });
-}
-
-function hangUp() {
-    if (callAtual) callAtual.close();
-    document.getElementById("video-screen").style.display = "none";
-    document.getElementById("remoto").srcObject = null;
-}
-
-async function trocarCamera() {
-    cameraMode = (cameraMode === "user") ? "environment" : "user";
-    stream.getTracks().forEach(t => t.stop());
-    stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: cameraMode }, audio: true
-    });
-    document.getElementById("local").srcObject = stream;
-    // Opcional: Re-enviar stream para a call atual se necessário
+function toggleAddBox() {
+    const box = document.getElementById("add-box");
+    box.style.display = box.style.display === "none" ? "block" : "none";
 }
 
 function addContact() {
     const name = document.getElementById("new-name").value;
     const id = document.getElementById("new-id").value;
-    if(!name || !id) return;
-    let list = JSON.parse(localStorage.getItem("zap_cont") || "[]");
-    list.push({name, id});
-    localStorage.setItem("zap_cont", JSON.stringify(list));
+    if (!name || !id) return;
+    let list = JSON.parse(localStorage.getItem("zap_contacts") || "[]");
+    list.push({ name, id });
+    localStorage.setItem("zap_contacts", JSON.stringify(list));
     renderContacts();
-    document.getElementById("add-pop").style.display = "none";
+    toggleAddBox();
 }
 
 function renderContacts() {
-    const list = JSON.parse(localStorage.getItem("zap_cont") || "[]");
-    document.getElementById("contatos").innerHTML = list.map(c => `
-        <div class="contact" onclick="openChat('${c.name}', '${c.id}')">
-            <div class="avatar">👤</div>
-            <div><b>${c.name}</b><br><small>ID: ${c.id}</small></div>
+    const list = JSON.parse(localStorage.getItem("zap_contacts") || "[]");
+    document.getElementById("lista-contatos").innerHTML = list.map(c => `
+        <div class="contact-item" onclick="openChat('${c.name}', '${c.id}')">
+            <b>${c.name}</b><br><small>ID: ${c.id}</small>
         </div>
     `).join("");
 }
 
+function openChat(name, id) {
+    activeContactId = id;
+    document.getElementById("chat-header").style.display = "flex";
+    document.getElementById("empty-state").style.display = "none";
+    document.getElementById("chat-user-name").innerText = name;
+    if (window.innerWidth <= 768) toggleSidebar();
+}
+
+function call(video) {
+    if (!activeContactId) return;
+    document.getElementById("video-screen").style.display = "block";
+    const call = peer.call(activeContactId, stream);
+    setupCall(call);
+}
+
+function setupCall(call) {
+    currentCall = call;
+    document.getElementById("video-screen").style.display = "block";
+    call.on("stream", rs => {
+        document.getElementById("remoto").srcObject = rs;
+    });
+}
+
+function hangup() {
+    if (currentCall) currentCall.close();
+    document.getElementById("video-screen").style.display = "none";
+    document.getElementById("remoto").srcObject = null;
+}
+
+async function switchCamera() {
+    facingMode = facingMode === "user" ? "environment" : "user";
+    stream.getTracks().forEach(t => t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: true });
+    document.getElementById("local").srcObject = stream;
+    document.getElementById("local").style.transform = facingMode === "user" ? "scaleX(-1)" : "scaleX(1)";
+}
+
 window.onload = () => {
-    const u = localStorage.getItem("user");
-    if(u) iniciarPeer(u);
+    const saved = localStorage.getItem("zap_user");
+    if (saved) initPeer(saved);
     renderContacts();
-};
+}
 </script>
 </body>
 </html>
