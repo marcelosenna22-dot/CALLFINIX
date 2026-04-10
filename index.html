@@ -3,137 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
-    <title>Zap PRO Fullscreen</title>
+    <title>Zap PRO Chat & Video</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-
     <style>
         :root {
             --green: #00a884;
             --bg: #0b141a;
             --panel: #202c33;
+            --incoming: #202c33;
             --text: #e9edef;
+            --chat-bg: #0b141a;
         }
 
         body {
             margin: 0;
-            /* 100dvh garante tela cheia real no mobile */
             height: 100dvh;
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Arial, sans-serif;
             background: var(--bg);
             color: var(--text);
             display: flex;
             overflow: hidden;
-            position: fixed; /* Evita scrolls indesejados no iOS */
-            width: 100%;
         }
 
-        /* SIDEBAR (MENU LATERAL) */
-        #sidebar {
-            width: 300px;
-            background: var(--panel);
-            display: flex;
-            flex-direction: column;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 100;
-            box-shadow: 5px 0 15px rgba(0,0,0,0.5);
-        }
-
-        .header { padding: 20px; background: #2a3942; text-align: center; border-bottom: 1px solid #3b4a54; }
-
-        #contatos { flex: 1; overflow-y: auto; padding: 10px; }
-        .contact {
-            padding: 15px;
-            margin-bottom: 8px;
-            background: #111b21;
-            border-radius: 12px;
-            cursor: pointer;
-            border-left: 4px solid var(--green);
-        }
-
-        .add-container { padding: 15px; border-bottom: 1px solid #3b4a54; }
-        .add-header { background: var(--green); padding: 12px; border-radius: 30px; cursor: pointer; text-align: center; font-weight: bold; }
-        .add-box { margin-top: 10px; display: none; flex-direction: column; gap: 8px; }
-
-        /* MAIN (VÍDEO EM TELA CHEIA) */
-        #main {
-            flex: 1;
-            position: relative;
-            background: black;
-            display: flex;
-            height: 100dvh;
-        }
-
-        #remoto { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; /* Garante tela cheia sem bordas pretas */
-        }
-
-        #local {
-            position: absolute;
-            width: 100px;
-            height: 150px;
-            top: env(safe-area-inset-top, 20px); /* Ajuste para o 'notch' do iPhone */
-            right: 20px;
-            border: 2px solid var(--green);
-            border-radius: 12px;
-            object-fit: cover;
-            z-index: 10;
-            background: #000;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        }
-
-        /* CONTROLES ESTILO WHATSAPP */
-        .controls {
-            position: absolute;
-            bottom: calc(30px + env(safe-area-inset-bottom));
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 20px;
-            z-index: 10;
-        }
-
-        .btn-round {
-            width: 55px; height: 55px; border-radius: 50%;
-            border: none; cursor: pointer; display: flex;
-            align-items: center; justify-content: center; font-size: 22px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
-
-        .green { background: var(--green); color: white; }
-        .red { background: #ea0038; color: white; }
-        .gray { background: rgba(84, 101, 111, 0.8); backdrop-filter: blur(5px); color: white; }
-
-        #btn-menu {
-            position: absolute;
-            top: env(safe-area-inset-top, 20px);
-            left: 20px;
-            z-index: 50;
-            width: 45px; height: 45px;
-            font-size: 18px;
-        }
-
-        /* LOGIN */
+        /* --- LOGIN --- */
         #login {
             position: fixed; inset: 0; background: var(--bg);
-            display: flex; justify-content: center; align-items: center; z-index: 200;
+            display: flex; justify-content: center; align-items: center; z-index: 500;
         }
         .box { background: var(--panel); padding: 30px; border-radius: 20px; width: 85%; max-width: 320px; text-align: center;}
         input { width: 100%; padding: 14px; margin: 10px 0; border-radius: 10px; border: none; background: #2a3942; color: white; box-sizing: border-box; }
 
-        /* MOBILE ADJUSTS */
+        /* --- SIDEBAR (LISTA) --- */
+        #sidebar {
+            width: 350px;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+        .header { padding: 15px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; }
+        
+        .contact {
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .contact:hover { background: var(--panel); }
+        .avatar { width: 45px; height: 45px; background: #54656f; border-radius: 50%; margin-right: 15px; display: flex; align-items: center; justify-content: center; font-size: 20px;}
+
+        /* --- CHAT AREA --- */
+        #chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--chat-bg);
+            position: relative;
+        }
+        #chat-header {
+            padding: 10px 20px;
+            background: var(--panel);
+            display: none; /* Só aparece quando clica no contato */
+            align-items: center;
+            justify-content: space-between;
+        }
+        .chat-actions { display: flex; gap: 20px; font-size: 20px; }
+        .chat-actions span { cursor: pointer; color: var(--green); }
+        
+        #chat-empty {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            color: #8696a0; text-align: center;
+        }
+
+        /* --- VIDEO CALL (FULLSCREEN) --- */
+        #video-screen {
+            position: fixed; inset: 0; background: black;
+            display: none; z-index: 400;
+        }
+        #remoto { width: 100%; height: 100%; object-fit: cover; }
+        #local {
+            position: absolute; width: 100px; height: 150px;
+            top: 40px; right: 20px; border: 2px solid var(--green);
+            border-radius: 12px; object-fit: cover; z-index: 410;
+        }
+        .call-controls {
+            position: absolute; bottom: 40px; left: 50%;
+            transform: translateX(-50%); display: flex; gap: 20px;
+        }
+
+        /* BOTÕES */
+        .btn-round {
+            width: 55px; height: 55px; border-radius: 50%; border: none;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 22px; color: white;
+        }
+        .btn-green { background: var(--green); }
+        .btn-red { background: #ea0038; }
+        .btn-gray { background: #54656f; }
+
         @media (max-width: 768px) {
-            #sidebar {
-                position: absolute;
-                left: 0; top: 0; bottom: 0;
-                transform: translateX(-100%);
-                width: 85%; /* Menu ocupa quase toda a tela no celular */
+            #sidebar { width: 100%; }
+            #chat-container { 
+                position: fixed; inset: 0; transform: translateX(100%); 
+                transition: 0.3s; z-index: 200; 
             }
-            #sidebar.open { transform: translateX(0); }
+            #chat-container.active { transform: translateX(0); }
         }
     </style>
 </head>
@@ -141,129 +116,165 @@
 
 <div id="login">
     <div class="box">
-        <h2 style="color: var(--green); margin-bottom: 20px;">Zap PRO</h2>
-        <input id="userId" placeholder="Seu nome">
-        <button class="green" style="width: 100%; padding: 15px; border-radius: 30px; border:none; font-weight: bold;" onclick="login()">ENTRAR</button>
+        <h2 style="color: var(--green);">Zap PRO</h2>
+        <input id="userId" placeholder="Seu Nome">
+        <button class="btn-green" style="width:100%; padding:15px; border-radius:30px; font-weight:bold;" onclick="login()">ENTRAR</button>
     </div>
 </div>
-
-<button id="btn-menu" class="btn-round gray" onclick="toggleSidebar()">👥</button>
 
 <div id="sidebar">
     <div class="header">
-        <b>Meu ID:</b> <span id="meuId" style="color:var(--green)"></span>
+        <b>Conversas</b>
+        <span id="meuId" style="font-size: 12px; color: var(--green)"></span>
+    </div>
+    
+    <div style="padding: 15px;">
+        <button class="btn-green" style="width:100%; border-radius:10px; padding:10px;" onclick="document.getElementById('add-pop').style.display='block'">+ Novo Contato</button>
     </div>
 
-    <div class="add-container">
-        <div class="add-header" onclick="toggleAdd()">➕ Adicionar Contato</div>
-        <div class="add-box" id="addBox">
-            <input id="nome" placeholder="Nome">
-            <input id="id" placeholder="ID">
-            <button class="green" style="border-radius: 10px; border:none; padding: 12px;" onclick="add()">Salvar</button>
-        </div>
+    <div id="add-pop" style="display:none; padding:15px; background:var(--panel)">
+        <input id="new-name" placeholder="Nome">
+        <input id="new-id" placeholder="ID do amigo">
+        <button class="btn-green" style="width:100%" onclick="addContact()">Salvar</button>
     </div>
 
     <div id="contatos"></div>
-    
-    <button class="gray" style="margin: 20px; border-radius: 30px; padding: 12px; border:none;" onclick="toggleSidebar()">Fechar Agenda</button>
 </div>
 
-<div id="main">
+<div id="chat-container">
+    <div id="chat-header">
+        <div style="display:flex; align-items:center;">
+            <span onclick="closeChat()" style="margin-right:15px; cursor:pointer" class="mobile-only">⬅</span>
+            <div class="avatar">👤</div>
+            <b id="chat-user-name">Nome</b>
+        </div>
+        <div class="chat-actions">
+            <span onclick="startCall(true)">📹</span>
+            <span onclick="startCall(false)">📞</span>
+        </div>
+    </div>
+
+    <div id="chat-empty">
+        <p>Selecione um contato para conversar</p>
+    </div>
+</div>
+
+<div id="video-screen">
     <video id="remoto" autoplay playsinline></video>
     <video id="local" autoplay muted playsinline></video>
-
-    <div class="controls">
-        <button class="btn-round gray" onclick="trocar()">🔄</button>
-        <button class="btn-round red" onclick="desligar()">❌</button>
+    <div class="call-controls">
+        <button class="btn-round btn-gray" onclick="trocarCamera()">🔄</button>
+        <button class="btn-round btn-red" onclick="hangUp()">❌</button>
     </div>
 </div>
 
 <script>
-let peer, stream, callAtual;
-let camera = "user";
+let peer, stream, callAtual, selectedContactId = null;
+let cameraMode = "user";
 
 function login() {
     const id = document.getElementById("userId").value.trim();
-    if (!id) return alert("Digite um nome!");
+    if (!id) return;
     localStorage.setItem("user", id);
     iniciarPeer(id);
 }
 
 function iniciarPeer(id) {
     peer = new Peer(id);
-    peer.on("open", async (id) => {
-        document.getElementById("meuId").innerText = id;
+    peer.on("open", async (myId) => {
+        document.getElementById("meuId").innerText = "Meu ID: " + myId;
         document.getElementById("login").style.display = "none";
-        await startCamera();
+        await initMedia();
     });
 
     peer.on("call", call => {
-        call.answer(stream);
-        callAtual = call;
-        call.on("stream", s => { document.getElementById("remoto").srcObject = s; });
+        if(confirm("Recebendo chamada de " + call.peer + ". Aceitar?")) {
+            call.answer(stream);
+            setupCall(call);
+        }
     });
 }
 
-window.onload = () => {
-    const user = localStorage.getItem("user");
-    if (user) iniciarPeer(user);
-    listar();
-};
-
-async function startCamera() {
-    if (stream) stream.getTracks().forEach(t => t.stop());
+async function initMedia() {
     try {
-        stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: camera, width: {ideal: 1280}, height: {ideal: 720} },
-            audio: true
-        });
+        stream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
         document.getElementById("local").srcObject = stream;
-        document.getElementById("local").style.transform = (camera === "user") ? "scaleX(-1)" : "scaleX(1)";
-    } catch { alert("Erro ao abrir câmera"); }
+    } catch (e) { console.log("Erro mídia:", e); }
 }
 
-async function trocar() {
-    camera = (camera === "user") ? "environment" : "user";
-    await startCamera();
+function openChat(name, id) {
+    selectedContactId = id;
+    document.getElementById("chat-user-name").innerText = name;
+    document.getElementById("chat-header").style.display = "flex";
+    document.getElementById("chat-empty").style.display = "none";
+    document.getElementById("chat-container").classList.add("active");
 }
 
-function ligar(id) {
-    const call = peer.call(id, stream);
+function closeChat() {
+    document.getElementById("chat-container").classList.remove("active");
+}
+
+function startCall(withVideo) {
+    if (!selectedContactId) return;
+    document.getElementById("video-screen").style.display = "block";
+    
+    // Se for só áudio, escondemos o vídeo local por capricho
+    document.getElementById("local").style.display = withVideo ? "block" : "none";
+
+    const call = peer.call(selectedContactId, stream);
+    setupCall(call);
+}
+
+function setupCall(call) {
     callAtual = call;
-    call.on("stream", s => { document.getElementById("remoto").srcObject = s; });
-    if(window.innerWidth < 768) toggleSidebar();
+    document.getElementById("video-screen").style.display = "block";
+    call.on("stream", s => {
+        document.getElementById("remoto").srcObject = s;
+    });
 }
 
-function toggleSidebar() { document.getElementById("sidebar").classList.toggle("open"); }
-function toggleAdd() { 
-    const box = document.getElementById("addBox");
-    box.style.display = (box.style.display === "flex") ? "none" : "flex";
+function hangUp() {
+    if (callAtual) callAtual.close();
+    document.getElementById("video-screen").style.display = "none";
+    document.getElementById("remoto").srcObject = null;
 }
 
-function add() {
-    const n = document.getElementById("nome").value;
-    const i = document.getElementById("id").value;
-    if (!n || !i) return;
-    let l = JSON.parse(localStorage.getItem("cont") || "[]");
-    l.push({ nome: n, id: i });
-    localStorage.setItem("cont", JSON.stringify(l));
-    listar();
-    toggleAdd();
+async function trocarCamera() {
+    cameraMode = (cameraMode === "user") ? "environment" : "user";
+    stream.getTracks().forEach(t => t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: cameraMode }, audio: true
+    });
+    document.getElementById("local").srcObject = stream;
+    // Opcional: Re-enviar stream para a call atual se necessário
 }
 
-function listar() {
-    const l = JSON.parse(localStorage.getItem("cont") || "[]");
-    document.getElementById("contatos").innerHTML = l.map(c => `
-        <div class="contact" onclick="ligar('${c.id}')">
-            <b>${c.nome}</b><br><small>ID: ${c.id}</small>
+function addContact() {
+    const name = document.getElementById("new-name").value;
+    const id = document.getElementById("new-id").value;
+    if(!name || !id) return;
+    let list = JSON.parse(localStorage.getItem("zap_cont") || "[]");
+    list.push({name, id});
+    localStorage.setItem("zap_cont", JSON.stringify(list));
+    renderContacts();
+    document.getElementById("add-pop").style.display = "none";
+}
+
+function renderContacts() {
+    const list = JSON.parse(localStorage.getItem("zap_cont") || "[]");
+    document.getElementById("contatos").innerHTML = list.map(c => `
+        <div class="contact" onclick="openChat('${c.name}', '${c.id}')">
+            <div class="avatar">👤</div>
+            <div><b>${c.name}</b><br><small>ID: ${c.id}</small></div>
         </div>
     `).join("");
 }
 
-function desligar() {
-    if (callAtual) callAtual.close();
-    document.getElementById("remoto").srcObject = null;
-}
+window.onload = () => {
+    const u = localStorage.getItem("user");
+    if(u) iniciarPeer(u);
+    renderContacts();
+};
 </script>
 </body>
 </html>
