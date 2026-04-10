@@ -17,21 +17,23 @@
 
 body {
     margin: 0;
-    display: flex;
     height: 100vh;
     font-family: Arial;
     background: var(--bg);
     color: var(--text);
+    display: flex;
 }
 
 /* SIDEBAR */
 #sidebar {
-    width: 300px;
+    width: 320px;
     background: var(--panel);
     display: flex;
     flex-direction: column;
+    border-right: 1px solid rgba(255,255,255,0.1);
 }
 
+/* HEADER */
 .header {
     padding: 15px;
     background: #2a3942;
@@ -39,6 +41,7 @@ body {
     font-weight: bold;
 }
 
+/* CONTATOS */
 .contact {
     padding: 12px;
     margin: 5px;
@@ -46,7 +49,6 @@ body {
     border-radius: 8px;
     cursor: pointer;
 }
-
 .contact:hover {
     background: #2a3942;
 }
@@ -58,6 +60,7 @@ body {
     background: black;
 }
 
+/* VIDEOS */
 video {
     width: 100%;
     height: 100%;
@@ -81,16 +84,23 @@ video {
     transform: translateX(-50%);
 }
 
+/* BOTÕES */
 button {
-    padding: 12px;
-    margin: 5px;
+    padding: 10px;
     border: none;
     border-radius: 10px;
     cursor: pointer;
 }
 
-.green { background: var(--green); color: white; }
-.red { background: red; color: white; }
+.green {
+    background: var(--green);
+    color: white;
+}
+
+.red {
+    background: red;
+    color: white;
+}
 
 /* LOGIN */
 #login {
@@ -100,6 +110,7 @@ button {
     display: flex;
     justify-content: center;
     align-items: center;
+    z-index: 100;
 }
 
 .box {
@@ -107,11 +118,51 @@ button {
     padding: 30px;
     border-radius: 10px;
 }
+
+/* MOBILE */
+@media (max-width: 768px) {
+
+    body {
+        flex-direction: column;
+    }
+
+    #sidebar {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        z-index: 2;
+    }
+
+    #main {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        z-index: 1;
+        display: none;
+    }
+
+    #main.active {
+        display: block;
+    }
+
+    .back-btn {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 10;
+        background: rgba(0,0,0,0.5);
+        color: white;
+        padding: 8px;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+}
 </style>
 </head>
 
 <body>
 
+<!-- LOGIN -->
 <div id="login">
     <div class="box">
         <h2>Entrar</h2>
@@ -120,6 +171,7 @@ button {
     </div>
 </div>
 
+<!-- SIDEBAR -->
 <div id="sidebar">
     <div class="header">
         ID: <span id="meuId"></span>
@@ -134,9 +186,12 @@ button {
     <div id="contatos"></div>
 </div>
 
+<!-- MAIN -->
 <div id="main">
-    <video id="remoto" autoplay></video>
-    <video id="local" autoplay muted></video>
+    <div class="back-btn" onclick="voltar()">⬅ Voltar</div>
+
+    <video id="remoto" autoplay playsinline></video>
+    <video id="local" autoplay muted playsinline></video>
 
     <div class="controls">
         <button class="green" onclick="trocar()">🔄</button>
@@ -150,20 +205,19 @@ let camera = "user";
 
 /* LOGIN */
 function login() {
-    const id = userId.value.trim();
+    const id = document.getElementById("userId").value.trim();
     if (!id) return alert("Digite ID");
 
     localStorage.setItem("user", id);
-
     iniciarPeer(id);
 }
 
 function iniciarPeer(id) {
     peer = new Peer(id);
 
-    peer.on("open", async id => {
-        meuId.innerText = id;
-        login.style.display = "none";
+    peer.on("open", async (id) => {
+        document.getElementById("meuId").innerText = id;
+        document.getElementById("login").style.display = "none";
 
         await startCamera();
     });
@@ -172,10 +226,14 @@ function iniciarPeer(id) {
         call.answer(stream);
         callAtual = call;
 
-        call.on("stream", s => remoto.srcObject = s);
+        call.on("stream", s => {
+            document.getElementById("remoto").srcObject = s;
+        });
+
+        abrirTelaMobile();
     });
 
-    peer.on("error", err => alert(err));
+    peer.on("error", err => alert("Erro: " + err));
 }
 
 /* AUTO LOGIN */
@@ -190,12 +248,17 @@ window.onload = () => {
 async function startCamera() {
     if (stream) stream.getTracks().forEach(t => t.stop());
 
-    stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: camera },
-        audio: true
-    });
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: camera },
+            audio: true
+        });
 
-    local.srcObject = stream;
+        document.getElementById("local").srcObject = stream;
+
+    } catch {
+        alert("Erro ao acessar câmera");
+    }
 }
 
 /* TROCAR CAMERA */
@@ -204,36 +267,56 @@ async function trocar() {
     await startCamera();
 }
 
-/* CHAMADA */
+/* LIGAR */
 function ligar(id) {
     if (!stream) return alert("Sem câmera");
 
     const call = peer.call(id, stream);
     callAtual = call;
 
-    call.on("stream", s => remoto.srcObject = s);
+    call.on("stream", s => {
+        document.getElementById("remoto").srcObject = s;
+    });
+
+    abrirTelaMobile();
+}
+
+/* MOBILE VIEW */
+function abrirTelaMobile() {
+    if (window.innerWidth < 768) {
+        document.getElementById("main").classList.add("active");
+        document.getElementById("sidebar").style.display = "none";
+    }
+}
+
+function voltar() {
+    document.getElementById("main").classList.remove("active");
+    document.getElementById("sidebar").style.display = "flex";
 }
 
 /* DESLIGAR */
 function desligar() {
     if (callAtual) {
         callAtual.close();
-        remoto.srcObject = null;
+        document.getElementById("remoto").srcObject = null;
     }
 }
 
 /* CONTATOS */
 function add() {
-    const n = nome.value;
-    const i = id.value;
+    const nome = document.getElementById("nome").value;
+    const id = document.getElementById("id").value;
 
-    if (!n || !i) return;
+    if (!nome || !id) return;
 
     let lista = JSON.parse(localStorage.getItem("cont") || "[]");
 
-    if (lista.find(c => c.id === i)) return alert("Já existe");
+    if (lista.find(c => c.id === id)) {
+        alert("Contato já existe");
+        return;
+    }
 
-    lista.push({ nome: n, id: i });
+    lista.push({ nome, id });
     localStorage.setItem("cont", JSON.stringify(lista));
 
     listar();
@@ -243,11 +326,12 @@ function add() {
 function listar() {
     const lista = JSON.parse(localStorage.getItem("cont") || "[]");
 
-    contatos.innerHTML = lista.map(c => `
-        <div class="contact" onclick="ligar('${c.id}')">
-            ${c.nome} <br><small>${c.id}</small>
-        </div>
-    `).join("");
+    document.getElementById("contatos").innerHTML =
+        lista.map(c => `
+            <div class="contact" onclick="ligar('${c.id}')">
+                ${c.nome}<br><small>${c.id}</small>
+            </div>
+        `).join("");
 }
 </script>
 
