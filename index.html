@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zap PRO</title>
+
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+<style>
+:root {
+    --green: #00a884;
+    --bg: #0b141a;
+    --panel: #202c33;
+    --text: #e9edef;
+}
+
+body {
+    margin: 0;
+    display: flex;
+    height: 100vh;
+    font-family: Arial;
+    background: var(--bg);
+    color: var(--text);
+}
+
+/* SIDEBAR */
+#sidebar {
+    width: 300px;
+    background: var(--panel);
+    display: flex;
+    flex-direction: column;
+}
+
+.header {
+    padding: 15px;
+    background: #2a3942;
+    text-align: center;
+    font-weight: bold;
+}
+
+.contact {
+    padding: 12px;
+    margin: 5px;
+    background: #111b21;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.contact:hover {
+    background: #2a3942;
+}
+
+/* MAIN */
+#main {
+    flex: 1;
+    position: relative;
+    background: black;
+}
+
+video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#local {
+    position: absolute;
+    width: 140px;
+    top: 10px;
+    right: 10px;
+    border: 2px solid var(--green);
+    border-radius: 10px;
+}
+
+/* CONTROLES */
+.controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+button {
+    padding: 12px;
+    margin: 5px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.green { background: var(--green); color: white; }
+.red { background: red; color: white; }
+
+/* LOGIN */
+#login {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.box {
+    background: var(--panel);
+    padding: 30px;
+    border-radius: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="login">
+    <div class="box">
+        <h2>Entrar</h2>
+        <input id="userId" placeholder="Seu ID"><br><br>
+        <button class="green" onclick="login()">Entrar</button>
+    </div>
+</div>
+
+<div id="sidebar">
+    <div class="header">
+        ID: <span id="meuId"></span>
+    </div>
+
+    <div style="padding:10px;">
+        <input id="nome" placeholder="Nome"><br>
+        <input id="id" placeholder="ID"><br>
+        <button class="green" onclick="add()">Adicionar</button>
+    </div>
+
+    <div id="contatos"></div>
+</div>
+
+<div id="main">
+    <video id="remoto" autoplay></video>
+    <video id="local" autoplay muted></video>
+
+    <div class="controls">
+        <button class="green" onclick="trocar()">🔄</button>
+        <button class="red" onclick="desligar()">❌</button>
+    </div>
+</div>
+
+<script>
+let peer, stream, callAtual;
+let camera = "user";
+
+/* LOGIN */
+function login() {
+    const id = userId.value.trim();
+    if (!id) return alert("Digite ID");
+
+    localStorage.setItem("user", id);
+
+    iniciarPeer(id);
+}
+
+function iniciarPeer(id) {
+    peer = new Peer(id);
+
+    peer.on("open", async id => {
+        meuId.innerText = id;
+        login.style.display = "none";
+
+        await startCamera();
+    });
+
+    peer.on("call", call => {
+        call.answer(stream);
+        callAtual = call;
+
+        call.on("stream", s => remoto.srcObject = s);
+    });
+
+    peer.on("error", err => alert(err));
+}
+
+/* AUTO LOGIN */
+window.onload = () => {
+    const user = localStorage.getItem("user");
+    if (user) iniciarPeer(user);
+
+    listar();
+};
+
+/* CAMERA */
+async function startCamera() {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+
+    stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: camera },
+        audio: true
+    });
+
+    local.srcObject = stream;
+}
+
+/* TROCAR CAMERA */
+async function trocar() {
+    camera = camera === "user" ? "environment" : "user";
+    await startCamera();
+}
+
+/* CHAMADA */
+function ligar(id) {
+    if (!stream) return alert("Sem câmera");
+
+    const call = peer.call(id, stream);
+    callAtual = call;
+
+    call.on("stream", s => remoto.srcObject = s);
+}
+
+/* DESLIGAR */
+function desligar() {
+    if (callAtual) {
+        callAtual.close();
+        remoto.srcObject = null;
+    }
+}
+
+/* CONTATOS */
+function add() {
+    const n = nome.value;
+    const i = id.value;
+
+    if (!n || !i) return;
+
+    let lista = JSON.parse(localStorage.getItem("cont") || "[]");
+
+    if (lista.find(c => c.id === i)) return alert("Já existe");
+
+    lista.push({ nome: n, id: i });
+    localStorage.setItem("cont", JSON.stringify(lista));
+
+    listar();
+}
+
+/* LISTAR */
+function listar() {
+    const lista = JSON.parse(localStorage.getItem("cont") || "[]");
+
+    contatos.innerHTML = lista.map(c => `
+        <div class="contact" onclick="ligar('${c.id}')">
+            ${c.nome} <br><small>${c.id}</small>
+        </div>
+    `).join("");
+}
+</script>
+
+</body>
+</html>
