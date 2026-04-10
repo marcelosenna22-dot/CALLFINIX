@@ -1,231 +1,171 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zap PRO</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Zap PRO</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --green: #00a884;
+            --bg: #0b141a;
+            --panel: #202c33;
+            --text: #e9edef;
+        }
 
-<style>
-:root {
-    --green: #00a884;
-    --bg: #0b141a;
-    --panel: #202c33;
-    --text: #e9edef;
-}
+        body {
+            margin: 0;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            overflow: hidden;
+        }
 
-body {
-    margin: 0;
-    height: 100vh;
-    font-family: Arial;
-    background: var(--bg);
-    color: var(--text);
-    display: flex;
-}
+        /* SIDEBAR (MENU LATERAL) */
+        #sidebar {
+            width: 300px;
+            background: var(--panel);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            z-index: 100;
+        }
 
-/* SIDEBAR */
-#sidebar {
-    width: 320px;
-    background: var(--panel);
-    display: flex;
-    flex-direction: column;
-}
+        /* HEADER */
+        .header { padding: 15px; background: #2a3942; text-align: center; border-bottom: 1px solid #3b4a54; }
 
-/* HEADER */
-.header {
-    padding: 15px;
-    background: #2a3942;
-    text-align: center;
-}
+        /* LISTA DE CONTATOS */
+        #contatos { flex: 1; overflow-y: auto; padding: 10px; }
+        .contact {
+            padding: 15px;
+            margin-bottom: 8px;
+            background: #111b21;
+            border-radius: 10px;
+            cursor: pointer;
+            border-left: 4px solid var(--green);
+        }
 
-/* CONTATOS */
-.contact {
-    padding: 12px;
-    margin: 5px;
-    background: #111b21;
-    border-radius: 8px;
-    cursor: pointer;
-}
-.contact:hover {
-    background: #2a3942;
-}
+        /* ÁREA ADICIONAR */
+        .add-container { padding: 10px; border-bottom: 1px solid #3b4a54; }
+        .add-header { background: var(--green); padding: 12px; border-radius: 8px; cursor: pointer; text-align: center; font-weight: bold; }
+        .add-box { margin-top: 10px; display: none; flex-direction: column; gap: 8px; }
 
-/* AREA ADICIONAR */
-.add-container {
-    padding: 10px;
-}
+        /* MAIN (VÍDEO) */
+        #main {
+            flex: 1;
+            position: relative;
+            background: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-.add-header {
-    background: #2a3942;
-    padding: 10px;
-    border-radius: 8px;
-    cursor: pointer;
-    text-align: center;
-}
+        #remoto { width: 100%; height: 100%; object-fit: cover; }
+        #local {
+            position: absolute;
+            width: 120px;
+            height: 180px;
+            top: 20px;
+            right: 20px;
+            border: 2px solid var(--green);
+            border-radius: 12px;
+            object-fit: cover;
+            z-index: 10;
+            background: #000;
+        }
 
-.add-box {
-    margin-top: 10px;
-    display: none;
-    flex-direction: column;
-    gap: 5px;
-}
+        /* CONTROLES */
+        .controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 10;
+        }
 
-/* PC sempre aberto */
-@media (min-width: 769px) {
-    .add-box {
-        display: flex !important;
-    }
-}
+        .btn-round {
+            width: 60px; height: 60px; border-radius: 50%;
+            border: none; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; font-size: 24px;
+        }
 
-/* MAIN */
-#main {
-    flex: 1;
-    position: relative;
-    background: black;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
-}
+        .green { background: var(--green); color: white; }
+        .red { background: #ea0038; color: white; }
+        .gray { background: #54656f; color: white; }
 
-/* VIDEO */
-#remoto {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
+        /* BOTÃO PARA ABRIR CONTATOS NO MOBILE */
+        #btn-menu {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 50;
+            display: none;
+        }
 
-#local {
-    position: absolute;
-    width: 160px;
-    height: 220px;
-    bottom: 20px;
-    right: 20px;
-    border: 2px solid var(--green);
-    border-radius: 12px;
-    object-fit: cover;
-}
+        /* LOGIN */
+        #login {
+            position: fixed; inset: 0; background: var(--bg);
+            display: flex; justify-content: center; align-items: center; z-index: 200;
+        }
+        .box { background: var(--panel); padding: 30px; border-radius: 15px; width: 80%; max-width: 300px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: #2a3942; color: white; box-sizing: border-box; }
 
-/* CONTROLES */
-.controls {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-}
-
-/* BOTÕES */
-button {
-    padding: 10px;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-}
-
-.green { background: var(--green); color: white; }
-.red { background: red; color: white; }
-
-/* LOGIN */
-#login {
-    position: fixed;
-    inset: 0;
-    background: var(--bg);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 100;
-}
-
-.box {
-    background: var(--panel);
-    padding: 30px;
-    border-radius: 10px;
-}
-
-/* MOBILE */
-@media (max-width: 768px) {
-
-    body {
-        flex-direction: column;
-    }
-
-    #sidebar {
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        z-index: 2;
-    }
-
-    #main {
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        display: none;
-    }
-
-    #main.active {
-        display: block;
-    }
-
-    .back-btn {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        z-index: 10;
-        background: rgba(0,0,0,0.5);
-        color: white;
-        padding: 8px;
-        border-radius: 8px;
-        cursor: pointer;
-    }
-}
-</style>
+        /* AJUSTES MOBILE */
+        @media (max-width: 768px) {
+            #sidebar {
+                position: absolute;
+                left: 0; top: 0; bottom: 0;
+                transform: translateX(-100%); /* Escondido à esquerda */
+            }
+            #sidebar.open { transform: translateX(0); }
+            #btn-menu { display: block; }
+            #local { width: 90px; height: 130px; }
+        }
+    </style>
 </head>
-
 <body>
 
-<!-- LOGIN -->
 <div id="login">
     <div class="box">
-        <h2>Entrar</h2>
-        <input id="userId" placeholder="Seu ID"><br><br>
-        <button class="green" onclick="login()">Entrar</button>
+        <h2 style="color: var(--green); text-align: center;">Zap PRO</h2>
+        <input id="userId" placeholder="Seu ID ou Nome">
+        <button class="green" style="width: 100%; padding: 12px; border-radius: 8px; border:none;" onclick="login()">Entrar</button>
     </div>
 </div>
 
-<!-- SIDEBAR -->
+<button id="btn-menu" class="btn-round gray" onclick="toggleSidebar()">👥</button>
+
 <div id="sidebar">
     <div class="header">
-        ID: <span id="meuId"></span>
+        <b>Meu ID:</b> <span id="meuId" style="color:var(--green)"></span>
     </div>
 
-    <!-- ADICIONAR CONTATO -->
     <div class="add-container">
-        <div class="add-header" onclick="toggleAdd()">
-            ➕ Adicionar contato
-        </div>
-
+        <div class="add-header" onclick="toggleAdd()">➕ Novo Contato</div>
         <div class="add-box" id="addBox">
-            <input id="nome" placeholder="Nome">
-            <input id="id" placeholder="ID">
-            <button class="green" onclick="add()">Salvar</button>
+            <input id="nome" placeholder="Nome do amigo">
+            <input id="id" placeholder="ID do amigo">
+            <button class="green" style="border-radius: 8px; border:none; padding: 10px;" onclick="add()">Salvar</button>
         </div>
     </div>
 
     <div id="contatos"></div>
+    
+    <button class="gray" style="margin: 10px; border-radius: 8px;" onclick="toggleSidebar()" id="btn-fechar-mobile">Fechar Lista</button>
 </div>
 
-<!-- MAIN -->
 <div id="main">
-    <div class="back-btn" onclick="voltar()">⬅ Voltar</div>
-
     <video id="remoto" autoplay playsinline></video>
     <video id="local" autoplay muted playsinline></video>
 
     <div class="controls">
-        <button class="green" onclick="trocar()">🔄</button>
-        <button class="red" onclick="desligar()">❌</button>
+        <button class="btn-round gray" onclick="trocar()">🔄</button>
+        <button class="btn-round red" onclick="desligar()">❌</button>
     </div>
 </div>
 
@@ -233,146 +173,92 @@ button {
 let peer, stream, callAtual;
 let camera = "user";
 
-/* LOGIN */
 function login() {
     const id = document.getElementById("userId").value.trim();
-    if (!id) return alert("Digite ID");
-
+    if (!id) return alert("Digite um ID");
     localStorage.setItem("user", id);
     iniciarPeer(id);
 }
 
 function iniciarPeer(id) {
     peer = new Peer(id);
-
     peer.on("open", async (id) => {
         document.getElementById("meuId").innerText = id;
         document.getElementById("login").style.display = "none";
-
         await startCamera();
     });
 
     peer.on("call", call => {
         call.answer(stream);
         callAtual = call;
-
-        call.on("stream", s => {
-            document.getElementById("remoto").srcObject = s;
-        });
-
-        abrirTelaMobile();
+        call.on("stream", s => { document.getElementById("remoto").srcObject = s; });
     });
-
-    peer.on("error", err => alert("Erro: " + err));
 }
 
-/* AUTO LOGIN */
 window.onload = () => {
     const user = localStorage.getItem("user");
     if (user) iniciarPeer(user);
-
     listar();
 };
 
-/* CAMERA */
 async function startCamera() {
     if (stream) stream.getTracks().forEach(t => t.stop());
-
     try {
         stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: camera },
             audio: true
         });
-
         document.getElementById("local").srcObject = stream;
-
-    } catch {
-        alert("Erro ao acessar câmera");
-    }
+        // Ajuste de espelho: espelha apenas a frontal
+        document.getElementById("local").style.transform = (camera === "user") ? "scaleX(-1)" : "scaleX(1)";
+    } catch { alert("Erro na câmera"); }
 }
 
-/* TROCAR CAMERA */
 async function trocar() {
     camera = camera === "user" ? "environment" : "user";
     await startCamera();
 }
 
-/* LIGAR */
 function ligar(id) {
-    if (!stream) return alert("Sem câmera");
-
+    if (!stream) return alert("Câmera não iniciada");
     const call = peer.call(id, stream);
     callAtual = call;
-
-    call.on("stream", s => {
-        document.getElementById("remoto").srcObject = s;
-    });
-
-    abrirTelaMobile();
+    call.on("stream", s => { document.getElementById("remoto").srcObject = s; });
+    if(window.innerWidth < 768) toggleSidebar(); // Fecha os contatos ao ligar
 }
 
-/* MOBILE */
-function abrirTelaMobile() {
-    if (window.innerWidth < 768) {
-        document.getElementById("main").classList.add("active");
-        document.getElementById("sidebar").style.display = "none";
-    }
+function toggleSidebar() {
+    document.getElementById("sidebar").classList.toggle("open");
 }
 
-function voltar() {
-    document.getElementById("main").classList.remove("active");
-    document.getElementById("sidebar").style.display = "flex";
+function toggleAdd() {
+    const box = document.getElementById("addBox");
+    box.style.display = (box.style.display === "flex") ? "none" : "flex";
 }
 
-/* DESLIGAR */
-function desligar() {
-    if (callAtual) {
-        callAtual.close();
-        document.getElementById("remoto").srcObject = null;
-    }
-}
-
-/* CONTATOS */
 function add() {
     const nome = document.getElementById("nome").value;
     const id = document.getElementById("id").value;
-
     if (!nome || !id) return;
-
     let lista = JSON.parse(localStorage.getItem("cont") || "[]");
-
-    if (lista.find(c => c.id === id)) {
-        alert("Contato já existe");
-        return;
-    }
-
     lista.push({ nome, id });
     localStorage.setItem("cont", JSON.stringify(lista));
-
     listar();
+    toggleAdd();
 }
 
-/* LISTAR */
 function listar() {
     const lista = JSON.parse(localStorage.getItem("cont") || "[]");
-
-    document.getElementById("contatos").innerHTML =
-        lista.map(c => `
-            <div class="contact" onclick="ligar('${c.id}')">
-                ${c.nome}<br><small>${c.id}</small>
-            </div>
-        `).join("");
+    document.getElementById("contatos").innerHTML = lista.map(c => `
+        <div class="contact" onclick="ligar('${c.id}')">
+            <b>${c.nome}</b><br><small>ID: ${c.id}</small>
+        </div>
+    `).join("");
 }
 
-/* TOGGLE ADD */
-function toggleAdd() {
-    const box = document.getElementById("addBox");
-
-    if (box.style.display === "flex") {
-        box.style.display = "none";
-    } else {
-        box.style.display = "flex";
-    }
+function desligar() {
+    if (callAtual) callAtual.close();
+    document.getElementById("remoto").srcObject = null;
 }
 </script>
 
