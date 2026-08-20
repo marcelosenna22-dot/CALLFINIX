@@ -242,6 +242,27 @@
             gap: 8px;
         }
 
+        .message-bubble {
+            max-width: 65%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .message-bubble.sent {
+            align-self: flex-end;
+            background: var(--wa-outgoing);
+            color: var(--wa-text-primary);
+        }
+
+        .message-bubble.received {
+            align-self: flex-start;
+            background: var(--wa-incoming);
+            color: var(--wa-text-primary);
+        }
+
         .chat-footer {
             min-height: 62px;
             background: var(--wa-panel-header);
@@ -260,6 +281,19 @@
             color: var(--wa-text-primary);
             font-size: 15px;
             outline: none;
+        }
+
+        .btn-send {
+            background: var(--wa-green);
+            border: none;
+            color: #111b21;
+            font-weight: 600;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .empty-state {
@@ -348,7 +382,6 @@
         }
 
         .btn-end { background: #ea0038; }
-        .btn-action { background: #3b4a54; }
 
         @media (max-width: 768px) {
             #sidebar { width: 100%; position: absolute; inset: 0; }
@@ -366,7 +399,7 @@
     <div id="login-screen">
         <div class="login-box">
             <h2>WhatsApp Web</h2>
-            <input id="my-id-input" placeholder="Digite seu Nome / ID">
+            <input id="my-id-input" placeholder="Digite seu Nome / ID" onkeydown="handleLoginKey(event)">
             <button onclick="doLogin()">Entrar no Chat</button>
         </div>
     </div>
@@ -420,7 +453,8 @@
         <div id="messages-container" class="chat-messages" style="display:none;"></div>
 
         <div id="chat-footer-ui" class="chat-footer" style="display:none;">
-            <input class="input-message" placeholder="Digite uma mensagem">
+            <input id="message-input" class="input-message" placeholder="Digite uma mensagem" onkeydown="handleMsgKey(event)">
+            <button class="btn-send" onclick="sendMessage()">Enviar</button>
         </div>
     </div>
 
@@ -438,6 +472,16 @@
 
     <script>
         let peer, myStream, activeCall, targetId;
+        let activeConn = null;
+        const activeConnections = {};
+
+        function handleLoginKey(e) {
+            if (e.key === 'Enter') doLogin();
+        }
+
+        function handleMsgKey(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
 
         function doLogin() {
             const id = document.getElementById("my-id-input").value.trim();
@@ -458,11 +502,23 @@
                 }
             });
 
+            // Receber conexões de dados (mensagens) de outros peers
+            peer.on('connection', conn => {
+                setupConnection(conn);
+            });
+
             peer.on('call', call => {
                 if(confirm(`Chamada recebida de: ${call.peer}. Aceitar?`)) {
                     call.answer(myStream);
                     handleCall(call);
                 }
+            });
+        }
+
+        function setupConnection(conn) {
+            activeConnections[conn.peer] = conn;
+            conn.on('data', data => {
+                appendMessage(conn.peer, data, 'received');
             });
         }
 
@@ -510,6 +566,48 @@
             document.getElementById("messages-container").style.display = "flex";
             document.getElementById("empty-chat").style.display = "none";
             document.getElementById("chat-main").classList.add("active");
+
+            // Estabelece ou reaproveita a conexão DataConnection para o contato selecionado
+            if(!activeConnections[targetId] || !activeConnections[targetId].open) {
+                const conn = peer.connect(targetId);
+                conn.on('open', () => {
+                    setupConnection(conn);
+                });
+            }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById("message-input");
+            const text = input.value.trim();
+            if(!text || !targetId) return;
+
+            let conn = activeConnections[targetId];
+
+            const send = (c) => {
+                c.send(text);
+                appendMessage(targetId, text, 'sent');
+                input.value = "";
+            };
+
+            if (conn && conn.open) {
+                send(conn);
+            } else {
+                conn = peer.connect(targetId);
+                conn.on('open', () => {
+                    setupConnection(conn);
+                    send(conn);
+                });
+            }
+        }
+
+        function appendMessage(peerId, text, type) {
+            if(peerId !== targetId && type === 'received') return;
+            const container = document.getElementById("messages-container");
+            const msgEl = document.createElement("div");
+            msgEl.className = `message-bubble ${type}`;
+            msgEl.innerText = text;
+            container.appendChild(msgEl);
+            container.scrollTop = container.scrollHeight;
         }
 
         function goBack() {
