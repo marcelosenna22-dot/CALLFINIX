@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Web Realtime</title>
+    <title>WhatsApp Web - Áudio e Vídeo</title>
+    <!-- PeerJS CDN (Para Chamada de Vídeo WebRTC) -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -31,10 +33,7 @@
             max-width: 400px;
         }
 
-        #login-screen h2 {
-            margin-bottom: 20px;
-            color: #008069;
-        }
+        #login-screen h2 { margin-bottom: 20px; color: #008069; }
 
         #login-screen input, #login-screen button {
             width: 100%;
@@ -53,20 +52,19 @@
             cursor: pointer;
         }
 
-        /* CONTAINER DO CHAT (WHATSAPP APP) */
+        /* CONTAINER DO APP */
         #app-container {
             display: flex;
             width: 100vw;
-            height: 100vh;
-            background-color: #fff;
-            max-width: 1200px;
             height: 95vh;
+            max-width: 1200px;
+            background-color: #fff;
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 2px 10px rgba(0,0,0,0.15);
         }
 
-        /* BARRA LATERAL (ESQUERDA) */
+        /* BARRA LATERAL */
         .sidebar {
             width: 35%;
             background-color: #ffffff;
@@ -84,6 +82,28 @@
             border-bottom: 1px solid #d1d7db;
             font-weight: bold;
             color: #111b21;
+            height: 60px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .action-btn:hover {
+            background-color: #e0e0e0;
         }
 
         .add-contact-box {
@@ -111,10 +131,7 @@
             cursor: pointer;
         }
 
-        .contact-list {
-            flex: 1;
-            overflow-y: auto;
-        }
+        .contact-list { flex: 1; overflow-y: auto; }
 
         .contact-item {
             padding: 15px;
@@ -126,9 +143,7 @@
             gap: 10px;
         }
 
-        .contact-item:hover, .contact-item.active {
-            background-color: #f0f2f5;
-        }
+        .contact-item:hover, .contact-item.active { background-color: #f0f2f5; }
 
         .avatar {
             width: 40px;
@@ -143,13 +158,13 @@
             text-transform: uppercase;
         }
 
-        /* ÁREA DE CONVERSA (DIREITA) */
+        /* ÁREA DE CHAT */
         .chat-area {
             width: 65%;
             display: flex;
             flex-direction: column;
             background-color: #efeae2;
-            background-image: linear-gradient(rgba(255,255,255,0.4), rgba(255,255,255,0.4));
+            position: relative;
         }
 
         .messages-container {
@@ -167,20 +182,12 @@
             padding: 8px 12px;
             border-radius: 8px;
             font-size: 14px;
-            position: relative;
             word-wrap: break-word;
             box-shadow: 0 1px 1px rgba(0,0,0,0.1);
         }
 
-        .message.sent {
-            background-color: #d9fdd3;
-            align-self: flex-end;
-        }
-
-        .message.received {
-            background-color: #ffffff;
-            align-self: flex-start;
-        }
+        .message.sent { background-color: #d9fdd3; align-self: flex-end; }
+        .message.received { background-color: #ffffff; align-self: flex-start; }
 
         .message .time {
             font-size: 10px;
@@ -189,7 +196,13 @@
             margin-top: 4px;
         }
 
-        /* BARRA DE ENVIO DE MENSAGEM */
+        audio {
+            max-width: 250px;
+            height: 35px;
+            margin-top: 5px;
+        }
+
+        /* BARRA DE ENVIO */
         .chat-input-area {
             background-color: #f0f2f5;
             padding: 10px 16px;
@@ -207,23 +220,89 @@
             font-size: 15px;
         }
 
-        .send-btn {
-            background-color: #00a884;
+        .btn-icon {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+        }
+
+        .btn-icon:hover { background-color: #e0e0e0; }
+
+        .btn-mic.recording {
+            color: red;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* TELA DE CHAMADA DE VÍDEO (OVERLAY) */
+        #video-modal {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .video-grid {
+            position: relative;
+            width: 90%;
+            height: 80%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #remote-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 10px;
+            background: #222;
+        }
+
+        #local-video {
+            width: 120px;
+            height: 160px;
+            object-fit: cover;
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            border-radius: 8px;
+            border: 2px solid white;
+            background: #333;
+        }
+
+        .call-controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .btn-end-call {
+            background: red;
             color: white;
             border: none;
-            padding: 10px 16px;
-            border-radius: 50%;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: bold;
             cursor: pointer;
             font-size: 16px;
         }
 
         .no-chat-selected {
-            display: flex;
-            flex: 1;
-            align-items: center;
-            justify-content: center;
-            color: #667781;
-            font-size: 16px;
+            display: flex; flex: 1; align-items: center;
+            justify-content: center; color: #667781;
         }
 
         @media (max-width: 768px) {
@@ -235,35 +314,34 @@
 </head>
 <body>
 
-    <!-- 1. TELA DE LOGIN -->
+    <!-- 1. LOGIN -->
     <div id="login-screen">
         <h2>WhatsApp Web</h2>
         <input type="text" id="meu-usuario" placeholder="Digite seu usuário (ex: marcelo)">
         <button onclick="entrar()">Entrar</button>
     </div>
 
-    <!-- 2. INTERFACE DO APP (SÓ APARECE APÓS LOGIN) -->
+    <!-- 2. APP -->
     <div id="app-container" style="display: none;">
-        <!-- BARRA LATERAL -->
         <div class="sidebar">
             <div class="header">
-                <span>Meu Perfil: <span id="usuario-logado"></span></span>
+                <span><span id="usuario-logado"></span></span>
             </div>
 
             <div class="add-contact-box">
-                <input type="text" id="novo-contato" placeholder="Adicionar usuário...">
+                <input type="text" id="novo-contato" placeholder="Adicionar contato...">
                 <button onclick="adicionarContato()">+</button>
             </div>
 
-            <div class="contact-list" id="lista-contatos">
-                <!-- Contatos inseridos via JavaScript -->
-            </div>
+            <div class="contact-list" id="lista-contatos"></div>
         </div>
 
-        <!-- ÁREA DE CONVERSA -->
         <div class="chat-area">
             <div class="header" id="chat-header">
                 <span id="nome-contato-ativo">Selecione uma conversa</span>
+                <div class="header-actions" id="call-actions" style="display: none;">
+                    <button class="action-btn" onclick="iniciarChamadaVideo()" title="Chamada de Vídeo">📹</button>
+                </div>
             </div>
 
             <div class="messages-container" id="container-mensagens">
@@ -274,7 +352,19 @@
 
             <div class="chat-input-area" id="area-envio" style="display: none;">
                 <input type="text" id="input-mensagem" placeholder="Digite uma mensagem" onkeypress="verificarTeclaEnter(event)">
-                <button class="send-btn" onclick="enviarMensagem()">➤</button>
+                <button class="btn-icon btn-mic" id="btn-mic" onclick="alternarGravacao()" title="Gravar Áudio">🎙️</button>
+                <button class="btn-icon" onclick="enviarMensagem()" title="Enviar">➤</button>
+            </div>
+
+            <!-- MODAL DE CHAMADA DE VÍDEO -->
+            <div id="video-modal">
+                <div class="video-grid">
+                    <video id="remote-video" autoplay playsinline></video>
+                    <video id="local-video" autoplay playsinline muted></video>
+                </div>
+                <div class="call-controls">
+                    <button class="btn-end-call" onclick="encerrarChamada()">Desconectar</button>
+                </div>
             </div>
         </div>
     </div>
@@ -288,7 +378,7 @@
         // COLOQUE SUAS CHAVES DO FIREBASE AQUI
         // -------------------------------------------------------------
         const firebaseConfig = {
-                       apiKey: "AIzaSyB5sq4ndamrQkuGYvwcppumfoIXOI13l_4",
+            apiKey: "AIzaSyB5sq4ndamrQkuGYvwcppumfoIXOI13l_4",
   authDomain: "callfinix.firebaseapp.com",
   databaseURL: "https://callfinix-default-rtdb.firebaseio.com",
   projectId: "callfinix",
@@ -305,6 +395,16 @@
         let contatoAtivo = "";
         let escutaMensagens = null;
 
+        // Variaveis de Áudio
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let gravando = false;
+
+        // Variaveis de Vídeo (PeerJS)
+        let peer = null;
+        let chamadaAtual = null;
+        let localStream = null;
+
         function entrar() {
             const input = document.getElementById('meu-usuario').value.trim().toLowerCase();
             if (!input) return alert("Digite um nome válido!");
@@ -315,17 +415,16 @@
             document.getElementById('app-container').style.display = 'flex';
 
             carregarContatos();
+            inicializarPeer();
+            escutarChamadasRecebidas();
         }
 
         function adicionarContato() {
             const novoContato = document.getElementById('novo-contato').value.trim().toLowerCase();
-            if (!novoContato) return;
-            if (novoContato === usuarioAtual) return alert("Você não pode adicionar a si mesmo!");
+            if (!novoContato || novoContato === usuarioAtual) return;
 
             database.ref('usuarios/' + usuarioAtual + '/contatos/' + novoContato).set(true)
-                .then(() => {
-                    document.getElementById('novo-contato').value = '';
-                });
+                .then(() => document.getElementById('novo-contato').value = '');
         }
 
         function carregarContatos() {
@@ -349,7 +448,6 @@
             });
         }
 
-        // Gera a chave única do chat baseada no nome em ordem alfabética
         function obterChatId(u1, u2) {
             return [u1, u2].sort().join('_');
         }
@@ -358,19 +456,16 @@
             contatoAtivo = contato;
             document.getElementById('nome-contato-ativo').innerText = contato;
             document.getElementById('area-envio').style.display = 'flex';
+            document.getElementById('call-actions').style.display = 'flex';
             document.getElementById('mensagem-vazia')?.remove();
 
-            carregarContatos(); // Atualiza seleção visual
+            carregarContatos();
 
-            // Remover escuta do chat antigo para economizar dados
-            if (escutaMensagens) {
-                database.ref('chats/' + escutaMensagens).off();
-            }
+            if (escutaMensagens) database.ref('chats/' + escutaMensagens).off();
 
             const chatId = obterChatId(usuarioAtual, contatoAtivo);
             escutaMensagens = chatId;
 
-            // Escutar novas mensagens em tempo real
             database.ref('chats/' + chatId).on('value', (snapshot) => {
                 const container = document.getElementById('container-mensagens');
                 container.innerHTML = '';
@@ -384,40 +479,149 @@
                         
                         const hora = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-                        divMsg.innerHTML = `
-                            <div>${msg.texto}</div>
-                            <div class="time">${hora}</div>
-                        `;
+                        if (msg.tipo === 'audio') {
+                            divMsg.innerHTML = `
+                                <audio controls src="${msg.texto}"></audio>
+                                <div class="time">${hora}</div>
+                            `;
+                        } else {
+                            divMsg.innerHTML = `
+                                <div>${msg.texto}</div>
+                                <div class="time">${hora}</div>
+                            `;
+                        }
                         container.appendChild(divMsg);
                     });
-                    container.scrollTop = container.scrollHeight; // Rola para a última mensagem
+                    container.scrollTop = container.scrollHeight;
                 }
             });
         }
 
-        function enviarMensagem() {
+        function enviarMensagem(conteudo = null, tipo = 'texto') {
             const input = document.getElementById('input-mensagem');
-            const texto = input.value.trim();
+            const texto = conteudo || input.value.trim();
 
             if (!texto || !contatoAtivo) return;
 
             const chatId = obterChatId(usuarioAtual, contatoAtivo);
 
-            const novaMensagem = {
+            database.ref('chats/' + chatId).push({
                 remetente: usuarioAtual,
                 texto: texto,
+                tipo: tipo,
                 timestamp: Date.now()
-            };
-
-            // Salva a mensagem no Firebase
-            database.ref('chats/' + chatId).push(novaMensagem)
-                .then(() => {
-                    input.value = '';
-                });
+            }).then(() => {
+                if (tipo === 'texto') input.value = '';
+            });
         }
 
         function verificarTeclaEnter(e) {
             if (e.key === 'Enter') enviarMensagem();
+        }
+
+        // =============================================================
+        // FUNÇÕES DE ÁUDIO (GRAVAÇÃO DE VOZ)
+        // =============================================================
+        async function alternarGravacao() {
+            const btnMic = document.getElementById('btn-mic');
+
+            if (!gravando) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                    
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const reader = new FileReader();
+                        reader.readAsDataURL(audioBlob);
+                        reader.onloadend = () => {
+                            const base64Audio = reader.result;
+                            enviarMensagem(base64Audio, 'audio');
+                        };
+                        // Desativar microfone
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.start();
+                    gravando = true;
+                    btnMic.classList.add('recording');
+                } catch (err) {
+                    alert("Erro ao acessar microfone: " + err.message);
+                }
+            } else {
+                mediaRecorder.stop();
+                gravando = false;
+                btnMic.classList.remove('recording');
+            }
+        }
+
+        // =============================================================
+        // FUNÇÕES DE VÍDEO (PEERJS / WEBRTC)
+        // =============================================================
+        function inicializarPeer() {
+            // Cria ID de conexão usando o próprio nome do usuário
+            peer = new Peer(usuarioAtual);
+        }
+
+        async function iniciarChamadaVideo() {
+            if (!contatoAtivo) return;
+
+            document.getElementById('video-modal').style.display = 'flex';
+
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById('local-video').srcObject = localStream;
+
+                chamadaAtual = peer.call(contatoAtivo, localStream);
+
+                chamadaAtual.on('stream', (remoteStream) => {
+                    document.getElementById('remote-video').srcObject = remoteStream;
+                });
+
+                // Avisa o outro usuário via Firebase sobre a chamada recebida
+                database.ref('chamadas/' + contatoAtivo).set({
+                    remetente: usuarioAtual,
+                    status: 'chamando'
+                });
+
+            } catch (err) {
+                alert("Não foi possível acessar a câmera/microfone.");
+                encerrarChamada();
+            }
+        }
+
+        function escutarChamadasRecebidas() {
+            // Escuta convites via PeerJS
+            peer.on('call', async (call) => {
+                const aceitar = confirm(`Recebendo chamada de vídeo de ${call.peer}. Aceitar?`);
+                if (aceitar) {
+                    document.getElementById('video-modal').style.display = 'flex';
+                    chamadaAtual = call;
+
+                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    document.getElementById('local-video').srcObject = localStream;
+
+                    call.answer(localStream);
+
+                    call.on('stream', (remoteStream) => {
+                        document.getElementById('remote-video').srcObject = remoteStream;
+                    });
+                } else {
+                    call.close();
+                }
+            });
+        }
+
+        function encerrarChamada() {
+            if (chamadaAtual) chamadaAtual.close();
+            if (localStream) localStream.getTracks().forEach(track => track.stop());
+
+            document.getElementById('video-modal').style.display = 'none';
+            document.getElementById('local-video').srcObject = null;
+            document.getElementById('remote-video').srcObject = null;
         }
     </script>
 </body>
