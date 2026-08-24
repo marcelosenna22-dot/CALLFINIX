@@ -1,0 +1,3 @@
+<uses-permission android-permission="android.permission.RECORD_AUDIO" />
+<uses-permission android-permission="android.permission.CAMERA" />
+<uses-permission android-permission="android.permission.MODIFY_AUDIO_SETTINGS" />
