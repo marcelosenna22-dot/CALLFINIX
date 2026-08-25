@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CallFinix Áudio e Vídeo</title>
-    <!-- PeerJS CDN -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         * {
@@ -107,9 +106,9 @@
         .action-btn {
             background: none;
             border: none;
-            font-size: 20px;
+            font-size: 18px;
             cursor: pointer;
-            padding: 8px;
+            padding: 6px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -207,10 +206,44 @@
             font-size: 15px;
             word-wrap: break-word;
             box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+            position: relative;
         }
 
         .message.sent { background-color: #d9fdd3; align-self: flex-end; }
         .message.received { background-color: #ffffff; align-self: flex-start; }
+
+        .message-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 4px;
+            justify-content: flex-end;
+            font-size: 12px;
+        }
+
+        .msg-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            opacity: 0.6;
+            padding: 2px;
+        }
+
+        .msg-btn:hover, .msg-btn:active {
+            opacity: 1;
+        }
+
+        .msg-btn.favorited {
+            color: #fbc02d;
+            opacity: 1;
+        }
+
+        .chat-img {
+            max-width: 100%;
+            max-height: 250px;
+            border-radius: 8px;
+            margin-top: 5px;
+            object-fit: cover;
+        }
 
         .message .time {
             font-size: 10px;
@@ -236,7 +269,7 @@
             border-top: 1px solid #d1d7db;
         }
 
-        .chat-input-area input {
+        .chat-input-area input[type="text"] {
             flex: 1;
             padding: 12px 14px;
             border: 1px solid #ccc;
@@ -409,20 +442,16 @@
 </head>
 <body>
 
-    <!-- 1. TELA DE LOGIN -->
     <div id="login-screen">
         <h2>CallFinix</h2>
         <input type="text" id="meu-usuario" placeholder="Digite seu usuário (ex: marcelo)">
         <button onclick="entrar()">Entrar</button>
     </div>
 
-    <!-- 2. APP CONTAINER -->
     <div id="app-container" style="display: none;">
         
-        <!-- MASCARA DE FUNDO DA GAVETA (MOBILE) -->
         <div id="drawer-overlay" onclick="fecharGaveta()"></div>
 
-        <!-- BARRA LATERAL (CONTATOS) -->
         <div class="sidebar" id="sidebar">
             <div class="header">
                 <span>👤 <span id="usuario-logado"></span></span>
@@ -437,10 +466,8 @@
             <div class="contact-list" id="lista-contatos"></div>
         </div>
 
-        <!-- ÁREA DO CHAT -->
         <div class="chat-area">
             <div class="header" id="chat-header">
-                <!-- BOTÃO + PARA EXPANDIR CONTATOS -->
                 <button class="toggle-contacts-btn" onclick="abrirGaveta()">
                     ➕ Contatos
                 </button>
@@ -450,6 +477,7 @@
                 </span>
 
                 <div class="header-actions" id="call-actions" style="display: none;">
+                    <button class="action-btn" onclick="limparConversa()" title="Limpar Conversa">🗑️</button>
                     <button class="action-btn" onclick="iniciarChamadaVideo()" title="Chamada de Vídeo">📹</button>
                 </div>
             </div>
@@ -460,14 +488,14 @@
                 </div>
             </div>
 
-            <!-- BARRA DE ENVIO DE MENSAGENS -->
             <div class="chat-input-area" id="area-envio" style="display: none;">
+                <input type="file" id="input-imagem" accept="image/*" style="display: none;" onchange="enviarImagem(event)">
+                <button class="btn-icon" onclick="document.getElementById('input-imagem').click()" title="Enviar Imagem">📎</button>
                 <input type="text" id="input-mensagem" placeholder="Digite uma mensagem..." onkeypress="verificarTeclaEnter(event)">
                 <button class="btn-icon btn-mic" id="btn-mic" onclick="alternarGravacao()" title="Gravar Áudio">🎙️</button>
                 <button class="btn-icon" onclick="enviarMensagem()" title="Enviar">➤</button>
             </div>
 
-            <!-- MODAL DE CHAMADA DE VÍDEO -->
             <div id="video-modal">
                 <div class="video-grid">
                     <video id="remote-video" autoplay playsinline></video>
@@ -481,7 +509,6 @@
         </div>
     </div>
 
-    <!-- SDKs do Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
@@ -521,15 +548,13 @@
 
         function tocarSomNotificacao() {
             try {
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
+                if (audioCtx.state === 'suspended') audioCtx.resume();
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1); // A5
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
 
                 gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
@@ -539,27 +564,20 @@
 
                 osc.start();
                 osc.stop(audioCtx.currentTime + 0.3);
-            } catch (e) {
-                console.log("Erro ao tocar som: ", e);
-            }
+            } catch (e) { console.log(e); }
         }
 
-        // SOLICITAR PERMISSÃO DE CÂMERA E MICROFONE AO INICIAR
         async function solicitarPermissoesMidia() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                // Para a captura inicial assim que concede autorização
                 stream.getTracks().forEach(track => track.stop());
-                console.log("Permissões de mídia concedidas.");
             } catch (err) {
-                console.warn("Aviso ao solicitar permissões:", err.message);
                 if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-                    alert("Atenção: A câmera e microfone só funcionam em conexões seguras (HTTPS).");
+                    alert("Atenção: Recursos de áudio/vídeo requerem conexão segura HTTPS.");
                 }
             }
         }
 
-        // CONTROLE DA GAVETA DE CONTATOS (MOBILE)
         function abrirGaveta() {
             document.getElementById('sidebar').classList.add('open');
             document.getElementById('drawer-overlay').classList.add('open');
@@ -644,9 +662,9 @@
                 const mensagens = snapshot.val();
 
                 if (mensagens) {
+                    const chaves = Object.keys(mensagens);
                     const listaMsgs = Object.values(mensagens);
 
-                    // Tocar som de notificação se for mensagem nova de outra pessoa
                     if (quantidadeMensagensAnterior > 0 && listaMsgs.length > quantidadeMensagensAnterior) {
                         const ultimaMsg = listaMsgs[listaMsgs.length - 1];
                         if (ultimaMsg.remetente !== usuarioAtual) {
@@ -655,24 +673,33 @@
                     }
                     quantidadeMensagensAnterior = listaMsgs.length;
 
-                    listaMsgs.forEach((msg) => {
+                    chaves.forEach((key) => {
+                        const msg = mensagens[key];
                         const divMsg = document.createElement('div');
                         const ehMinha = msg.remetente === usuarioAtual;
                         divMsg.className = `message ${ehMinha ? 'sent' : 'received'}`;
                         
                         const hora = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+                        let conteudoHtml = '';
                         if (msg.tipo === 'audio') {
-                            divMsg.innerHTML = `
-                                <audio controls src="${msg.texto}"></audio>
-                                <div class="time">${hora}</div>
-                            `;
+                            conteudoHtml = `<audio controls src="${msg.texto}"></audio>`;
+                        } else if (msg.tipo === 'imagem') {
+                            conteudoHtml = `<img src="${msg.texto}" class="chat-img" alt="Imagem enviada">`;
                         } else {
-                            divMsg.innerHTML = `
-                                <div>${msg.texto}</div>
-                                <div class="time">${hora}</div>
-                            `;
+                            conteudoHtml = `<div>${msg.texto}</div>`;
                         }
+
+                        const isFav = msg.favorita ? 'favorited' : '';
+
+                        divMsg.innerHTML = `
+                            ${conteudoHtml}
+                            <div class="time">${hora}</div>
+                            <div class="message-actions">
+                                <button class="msg-btn ${isFav}" onclick="toggleFavoritar('${key}', ${!msg.favorita})" title="Favoritar">⭐</button>
+                                ${ehMinha ? `<button class="msg-btn" onclick="apagarMensagem('${key}')" title="Apagar">🗑️</button>` : ''}
+                            </div>
+                        `;
                         container.appendChild(divMsg);
                     });
                     container.scrollTop = container.scrollHeight;
@@ -692,10 +719,43 @@
                 remetente: usuarioAtual,
                 texto: texto,
                 tipo: tipo,
+                favorita: false,
                 timestamp: Date.now()
             }).then(() => {
                 if (tipo === 'texto') input.value = '';
             });
+        }
+
+        function enviarImagem(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                enviarMensagem(evt.target.result, 'imagem');
+                e.target.value = '';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function apagarMensagem(msgKey) {
+            if (!contatoAtivo || !msgKey) return;
+            const chatId = obterChatId(usuarioAtual, contatoAtivo);
+            database.ref(`chats/${chatId}/${msgKey}`).remove();
+        }
+
+        function toggleFavoritar(msgKey, novoEstado) {
+            if (!contatoAtivo || !msgKey) return;
+            const chatId = obterChatId(usuarioAtual, contatoAtivo);
+            database.ref(`chats/${chatId}/${msgKey}`).update({ favorita: novoEstado });
+        }
+
+        function limparConversa() {
+            if (!contatoAtivo) return;
+            if (confirm(`Deseja apagar todas as mensagens da conversa com ${contatoAtivo}?`)) {
+                const chatId = obterChatId(usuarioAtual, contatoAtivo);
+                database.ref('chats/' + chatId).remove();
+            }
         }
 
         function verificarTeclaEnter(e) {
@@ -732,8 +792,7 @@
                         const reader = new FileReader();
                         reader.readAsDataURL(audioBlob);
                         reader.onloadend = () => {
-                            const base64Audio = reader.result;
-                            enviarMensagem(base64Audio, 'audio');
+                            enviarMensagem(reader.result, 'audio');
                         };
                         stream.getTracks().forEach(track => track.stop());
                     };
@@ -754,13 +813,12 @@
         }
 
         // =============================================================
-        // WEBRTC / PEERJS (CHAMADA DE VÍDEO E ÁUDIO)
+        // WEBRTC / PEERJS
         // =============================================================
         function inicializarPeer() {
             peer = new Peer(usuarioAtual);
 
             peer.on('error', (err) => {
-                console.error("Erro no PeerJS:", err);
                 if (err.type === 'peer-unavailable') {
                     alert("O contato não está online no momento.");
                     encerrarChamada();
