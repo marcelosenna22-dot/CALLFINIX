@@ -341,7 +341,22 @@
         .call-controls {
             margin-top: 20px;
             display: flex;
-            gap: 20px;
+            gap: 15px;
+        }
+
+        .btn-call-ctrl {
+            background: #ffffff33;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .btn-end-call {
@@ -459,6 +474,7 @@
                     <video id="local-video" autoplay playsinline muted></video>
                 </div>
                 <div class="call-controls">
+                    <button class="btn-call-ctrl" onclick="alternarMicrofone()" id="btn-mute" title="Mutar Microfone">🎙️</button>
                     <button class="btn-end-call" onclick="encerrarChamada()">Desconectar</button>
                 </div>
             </div>
@@ -487,6 +503,7 @@
         let usuarioAtual = "";
         let contatoAtivo = "";
         let escutaMensagens = null;
+        let quantidadeMensagensAnterior = 0;
 
         // Áudio
         let mediaRecorder = null;
@@ -497,6 +514,50 @@
         let peer = null;
         let chamadaAtual = null;
         let localStream = null;
+        let audioMuted = false;
+
+        // Web Audio API para Som de Notificação
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function tocarSomNotificacao() {
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1); // A5
+
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } catch (e) {
+                console.log("Erro ao tocar som: ", e);
+            }
+        }
+
+        // SOLICITAR PERMISSÃO DE CÂMERA E MICROFONE AO INICIAR
+        async function solicitarPermissoesMidia() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                // Para a captura inicial assim que concede autorização
+                stream.getTracks().forEach(track => track.stop());
+                console.log("Permissões de mídia concedidas.");
+            } catch (err) {
+                console.warn("Aviso ao solicitar permissões:", err.message);
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                    alert("Atenção: A câmera e microfone só funcionam em conexões seguras (HTTPS).");
+                }
+            }
+        }
 
         // CONTROLE DA GAVETA DE CONTATOS (MOBILE)
         function abrirGaveta() {
@@ -509,7 +570,7 @@
             document.getElementById('drawer-overlay').classList.remove('open');
         }
 
-        function entrar() {
+        async function entrar() {
             const input = document.getElementById('meu-usuario').value.trim().toLowerCase();
             if (!input) return alert("Digite um nome válido!");
 
@@ -518,6 +579,7 @@
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('app-container').style.display = 'flex';
 
+            await solicitarPermissoesMidia();
             carregarContatos();
             inicializarPeer();
             escutarChamadasRecebidas();
@@ -543,7 +605,7 @@
                         div.className = `contact-item ${contato === contatoAtivo ? 'active' : ''}`;
                         div.onclick = () => {
                             abrirChat(contato);
-                            fecharGaveta(); // Fecha a gaveta após selecionar no mobile
+                            fecharGaveta();
                         };
                         div.innerHTML = `
                             <div class="avatar">${contato.charAt(0)}</div>
@@ -574,6 +636,7 @@
 
             const chatId = obterChatId(usuarioAtual, contatoAtivo);
             escutaMensagens = chatId;
+            quantidadeMensagensAnterior = 0;
 
             database.ref('chats/' + chatId).on('value', (snapshot) => {
                 const container = document.getElementById('container-mensagens');
@@ -581,7 +644,18 @@
                 const mensagens = snapshot.val();
 
                 if (mensagens) {
-                    Object.values(mensagens).forEach((msg) => {
+                    const listaMsgs = Object.values(mensagens);
+
+                    // Tocar som de notificação se for mensagem nova de outra pessoa
+                    if (quantidadeMensagensAnterior > 0 && listaMsgs.length > quantidadeMensagensAnterior) {
+                        const ultimaMsg = listaMsgs[listaMsgs.length - 1];
+                        if (ultimaMsg.remetente !== usuarioAtual) {
+                            tocarSomNotificacao();
+                        }
+                    }
+                    quantidadeMensagensAnterior = listaMsgs.length;
+
+                    listaMsgs.forEach((msg) => {
                         const divMsg = document.createElement('div');
                         const ehMinha = msg.remetente === usuarioAtual;
                         divMsg.className = `message ${ehMinha ? 'sent' : 'received'}`;
@@ -629,7 +703,7 @@
         }
 
         // =============================================================
-        // GRAVAÇÃO DE VOZ MELHORADA PARA CELULARES
+        // GRAVAÇÃO DE VOZ
         // =============================================================
         async function alternarGravacao() {
             const btnMic = document.getElementById('btn-mic');
@@ -638,7 +712,6 @@
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     
-                    // Suporte a diferentes formatos de áudio para dispositivos Android/iOS
                     let options = {};
                     if (MediaRecorder.isTypeSupported('audio/webm')) {
                         options = { mimeType: 'audio/webm' };
@@ -669,7 +742,7 @@
                     gravando = true;
                     btnMic.classList.add('recording');
                 } catch (err) {
-                    alert("Erro ao acessar microfone no aparelho: " + err.message);
+                    alert("Erro ao acessar microfone: " + err.message);
                 }
             } else {
                 if (mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -681,10 +754,25 @@
         }
 
         // =============================================================
-        // WEBRTC / PEERJS
+        // WEBRTC / PEERJS (CHAMADA DE VÍDEO E ÁUDIO)
         // =============================================================
         function inicializarPeer() {
             peer = new Peer(usuarioAtual);
+
+            peer.on('error', (err) => {
+                console.error("Erro no PeerJS:", err);
+                if (err.type === 'peer-unavailable') {
+                    alert("O contato não está online no momento.");
+                    encerrarChamada();
+                }
+            });
+        }
+
+        async function obterStreamMidia() {
+            return await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user' },
+                audio: true
+            });
         }
 
         async function iniciarChamadaVideo() {
@@ -693,7 +781,7 @@
             document.getElementById('video-modal').style.display = 'flex';
 
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localStream = await obterStreamMidia();
                 document.getElementById('local-video').srcObject = localStream;
 
                 chamadaAtual = peer.call(contatoAtivo, localStream);
@@ -702,40 +790,70 @@
                     document.getElementById('remote-video').srcObject = remoteStream;
                 });
 
+                chamadaAtual.on('close', () => {
+                    encerrarChamada();
+                });
+
             } catch (err) {
-                alert("Não foi possível acessar a câmera/microfone.");
+                alert("Não foi possível acessar a câmera e microfone: " + err.message);
                 encerrarChamada();
             }
         }
 
         function escutarChamadasRecebidas() {
             peer.on('call', async (call) => {
+                tocarSomNotificacao();
                 const aceitar = confirm(`Chamada de vídeo de ${call.peer}. Aceitar?`);
                 if (aceitar) {
                     document.getElementById('video-modal').style.display = 'flex';
                     chamadaAtual = call;
 
-                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                    document.getElementById('local-video').srcObject = localStream;
+                    try {
+                        localStream = await obterStreamMidia();
+                        document.getElementById('local-video').srcObject = localStream;
 
-                    call.answer(localStream);
+                        call.answer(localStream);
 
-                    call.on('stream', (remoteStream) => {
-                        document.getElementById('remote-video').srcObject = remoteStream;
-                    });
+                        call.on('stream', (remoteStream) => {
+                            document.getElementById('remote-video').srcObject = remoteStream;
+                        });
+
+                        call.on('close', () => {
+                            encerrarChamada();
+                        });
+                    } catch (err) {
+                        alert("Erro ao abrir câmera/microfone: " + err.message);
+                        call.close();
+                    }
                 } else {
                     call.close();
                 }
             });
         }
 
+        function alternarMicrofone() {
+            if (localStream) {
+                const audioTrack = localStream.getAudioTracks()[0];
+                if (audioTrack) {
+                    audioTrack.enabled = !audioTrack.enabled;
+                    audioMuted = !audioTrack.enabled;
+                    document.getElementById('btn-mute').innerText = audioMuted ? '🔇' : '🎙️';
+                }
+            }
+        }
+
         function encerrarChamada() {
             if (chamadaAtual) chamadaAtual.close();
-            if (localStream) localStream.getTracks().forEach(track => track.stop());
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
 
             document.getElementById('video-modal').style.display = 'none';
             document.getElementById('local-video').srcObject = null;
             document.getElementById('remote-video').srcObject = null;
+            document.getElementById('btn-mute').innerText = '🎙️';
+            audioMuted = false;
         }
     </script>
 </body>
