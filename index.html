@@ -243,6 +243,12 @@
             border-radius: 8px;
             margin-top: 5px;
             object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .chat-img:hover {
+            transform: scale(1.02);
         }
 
         .message .time {
@@ -413,6 +419,25 @@
             padding: 20px;
         }
 
+        /* MODAL DE VISUALIZAÇÃO DE IMAGEM */
+        #image-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #image-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+        }
+
         /* MEDIA QUERIES (ADAPTAÇÃO CELULAR) */
         @media (max-width: 768px) {
             #app-container { height: 100vh; border-radius: 0; }
@@ -477,7 +502,7 @@
                 </span>
 
                 <div class="header-actions" id="call-actions" style="display: none;">
-                    <button class="action-btn" onclick="limparConversa()" title="Limpar Conversa">🗑️</button>
+                    <button class="action-btn" onclick="limparConversa()" title="Limpar Conversa (Só para mim)">🗑️</button>
                     <button class="action-btn" onclick="iniciarChamadaVideo()" title="Chamada de Vídeo">📹</button>
                 </div>
             </div>
@@ -506,6 +531,11 @@
                     <button class="btn-end-call" onclick="encerrarChamada()">Desconectar</button>
                 </div>
             </div>
+
+            <!-- MODAL DE VISUALIZAÇÃO DE IMAGEM -->
+            <div id="image-modal" onclick="fecharModalImagem()">
+                <img id="modal-img-src" src="" alt="Imagem ampliada">
+            </div>
         </div>
     </div>
 
@@ -530,7 +560,9 @@
         let usuarioAtual = "";
         let contatoAtivo = "";
         let escutaMensagens = null;
+        let escutaLimpeza = null;
         let quantidadeMensagensAnterior = 0;
+        let dataLimpezaConversa = 0;
 
         // Áudio
         let mediaRecorder = null;
@@ -639,6 +671,16 @@
             return [u1, u2].sort().join('_');
         }
 
+        function abrirModalImagem(src) {
+            document.getElementById('modal-img-src').src = src;
+            document.getElementById('image-modal').style.display = 'flex';
+        }
+
+        function fecharModalImagem() {
+            document.getElementById('image-modal').style.display = 'none';
+            document.getElementById('modal-img-src').src = '';
+        }
+
         function abrirChat(contato) {
             contatoAtivo = contato;
             document.getElementById('nome-contato-ativo').innerText = contato;
@@ -651,59 +693,70 @@
             carregarContatos();
 
             if (escutaMensagens) database.ref('chats/' + escutaMensagens).off();
+            if (escutaLimpeza) database.ref(escutaLimpeza).off();
 
             const chatId = obterChatId(usuarioAtual, contatoAtivo);
             escutaMensagens = chatId;
             quantidadeMensagensAnterior = 0;
 
-            database.ref('chats/' + chatId).on('value', (snapshot) => {
-                const container = document.getElementById('container-mensagens');
-                container.innerHTML = '';
-                const mensagens = snapshot.val();
+            // Carrega o timestamp de limpeza local do usuário
+            const refLimpeza = `usuarios/${usuarioAtual}/chats_apagados/${chatId}`;
+            escutaLimpeza = refLimpeza;
 
-                if (mensagens) {
-                    const chaves = Object.keys(mensagens);
-                    const listaMsgs = Object.values(mensagens);
+            database.ref(refLimpeza).on('value', (snapshotLimpeza) => {
+                dataLimpezaConversa = snapshotLimpeza.val() || 0;
 
-                    if (quantidadeMensagensAnterior > 0 && listaMsgs.length > quantidadeMensagensAnterior) {
-                        const ultimaMsg = listaMsgs[listaMsgs.length - 1];
-                        if (ultimaMsg.remetente !== usuarioAtual) {
-                            tocarSomNotificacao();
+                database.ref('chats/' + chatId).on('value', (snapshot) => {
+                    const container = document.getElementById('container-mensagens');
+                    container.innerHTML = '';
+                    const mensagens = snapshot.val();
+
+                    if (mensagens) {
+                        const chaves = Object.keys(mensagens);
+                        // Filtra mensagens apenas após a última limpeza local
+                        const chavesVisiveis = chaves.filter(k => (mensagens[k].timestamp || 0) > dataLimpezaConversa);
+                        const listaMsgs = chavesVisiveis.map(k => mensagens[k]);
+
+                        if (quantidadeMensagensAnterior > 0 && listaMsgs.length > quantidadeMensagensAnterior) {
+                            const ultimaMsg = listaMsgs[listaMsgs.length - 1];
+                            if (ultimaMsg.remetente !== usuarioAtual) {
+                                tocarSomNotificacao();
+                            }
                         }
+                        quantidadeMensagensAnterior = listaMsgs.length;
+
+                        chavesVisiveis.forEach((key) => {
+                            const msg = mensagens[key];
+                            const divMsg = document.createElement('div');
+                            const ehMinha = msg.remetente === usuarioAtual;
+                            divMsg.className = `message ${ehMinha ? 'sent' : 'received'}`;
+                            
+                            const hora = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                            let conteudoHtml = '';
+                            if (msg.tipo === 'audio') {
+                                conteudoHtml = `<audio controls src="${msg.texto}"></audio>`;
+                            } else if (msg.tipo === 'imagem') {
+                                conteudoHtml = `<img src="${msg.texto}" class="chat-img" alt="Imagem enviada" onclick="abrirModalImagem('${msg.texto}')">`;
+                            } else {
+                                conteudoHtml = `<div>${msg.texto}</div>`;
+                            }
+
+                            const isFav = msg.favorita ? 'favorited' : '';
+
+                            divMsg.innerHTML = `
+                                ${conteudoHtml}
+                                <div class="time">${hora}</div>
+                                <div class="message-actions">
+                                    <button class="msg-btn ${isFav}" onclick="toggleFavoritar('${key}', ${!msg.favorita})" title="Favoritar">⭐</button>
+                                    ${ehMinha ? `<button class="msg-btn" onclick="apagarMensagem('${key}')" title="Apagar">🗑️</button>` : ''}
+                                </div>
+                            `;
+                            container.appendChild(divMsg);
+                        });
+                        container.scrollTop = container.scrollHeight;
                     }
-                    quantidadeMensagensAnterior = listaMsgs.length;
-
-                    chaves.forEach((key) => {
-                        const msg = mensagens[key];
-                        const divMsg = document.createElement('div');
-                        const ehMinha = msg.remetente === usuarioAtual;
-                        divMsg.className = `message ${ehMinha ? 'sent' : 'received'}`;
-                        
-                        const hora = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-                        let conteudoHtml = '';
-                        if (msg.tipo === 'audio') {
-                            conteudoHtml = `<audio controls src="${msg.texto}"></audio>`;
-                        } else if (msg.tipo === 'imagem') {
-                            conteudoHtml = `<img src="${msg.texto}" class="chat-img" alt="Imagem enviada">`;
-                        } else {
-                            conteudoHtml = `<div>${msg.texto}</div>`;
-                        }
-
-                        const isFav = msg.favorita ? 'favorited' : '';
-
-                        divMsg.innerHTML = `
-                            ${conteudoHtml}
-                            <div class="time">${hora}</div>
-                            <div class="message-actions">
-                                <button class="msg-btn ${isFav}" onclick="toggleFavoritar('${key}', ${!msg.favorita})" title="Favoritar">⭐</button>
-                                ${ehMinha ? `<button class="msg-btn" onclick="apagarMensagem('${key}')" title="Apagar">🗑️</button>` : ''}
-                            </div>
-                        `;
-                        container.appendChild(divMsg);
-                    });
-                    container.scrollTop = container.scrollHeight;
-                }
+                });
             });
         }
 
@@ -752,9 +805,10 @@
 
         function limparConversa() {
             if (!contatoAtivo) return;
-            if (confirm(`Deseja apagar todas as mensagens da conversa com ${contatoAtivo}?`)) {
+            if (confirm(`Deseja limpar as mensagens dessa conversa para você? (O outro contato continuará vendo as mensagens)`)) {
                 const chatId = obterChatId(usuarioAtual, contatoAtivo);
-                database.ref('chats/' + chatId).remove();
+                // Salva o timestamp atual apenas na conta do usuário logado
+                database.ref(`usuarios/${usuarioAtual}/chats_apagados/${chatId}`).set(Date.now());
             }
         }
 
