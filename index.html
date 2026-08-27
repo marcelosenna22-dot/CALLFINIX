@@ -112,7 +112,7 @@
             background: rgba(255, 255, 255, 0.25);
         }
 
-        /* CONTEÚDO PRINCIPAL (SIDEBAR + CHAT) */
+        /* CONTEÚDO PRINCIPAL */
         .main-content {
             display: flex;
             flex: 1;
@@ -201,16 +201,46 @@
         }
 
         .contact-item {
-            padding: 14px 16px;
+            padding: 10px 16px;
             border-bottom: 1px solid #f0f2f5;
             cursor: pointer;
             transition: background 0.2s;
             display: flex;
             align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .contact-info {
+            display: flex;
+            align-items: center;
             gap: 12px;
+            flex: 1;
+            overflow: hidden;
         }
 
         .contact-item:active, .contact-item.active { background-color: #f0f2f5; }
+
+        .contact-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .contact-action-btn {
+            background: none;
+            border: none;
+            font-size: 15px;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 50%;
+            opacity: 0.6;
+            transition: opacity 0.2s, background 0.2s;
+        }
+
+        .contact-action-btn:hover {
+            opacity: 1;
+            background-color: #e0e0e0;
+        }
 
         .avatar {
             width: 42px;
@@ -224,6 +254,7 @@
             font-weight: bold;
             font-size: 18px;
             text-transform: uppercase;
+            flex-shrink: 0;
         }
 
         /* ÁREA DE CHAT */
@@ -654,6 +685,7 @@
 
         let usuarioAtual = "";
         let contatoAtivo = "";
+        let apelidosContatos = {};
         let escutaMensagens = null;
         let escutaLimpeza = null;
         let quantidadeMensagensAnterior = 0;
@@ -737,7 +769,7 @@
             document.getElementById('app-container').style.display = 'flex';
 
             await solicitarPermissoesMidia();
-            carregarContatos();
+            carregarApelidosEContatos();
             escutarMensagensOcultas();
             inicializarPeer();
             escutarChamadasRecebidas();
@@ -766,6 +798,13 @@
                 .then(() => document.getElementById('novo-contato').value = '');
         }
 
+        function carregarApelidosEContatos() {
+            database.ref('usuarios/' + usuarioAtual + '/contatos_apelidos').on('value', (snapshotApelidos) => {
+                apelidosContatos = snapshotApelidos.val() || {};
+                carregarContatos();
+            });
+        }
+
         function carregarContatos() {
             database.ref('usuarios/' + usuarioAtual + '/contatos').on('value', (snapshot) => {
                 const lista = document.getElementById('lista-contatos');
@@ -776,18 +815,66 @@
                     Object.keys(contatos).forEach((contato) => {
                         const div = document.createElement('div');
                         div.className = `contact-item ${contato === contatoAtivo ? 'active' : ''}`;
-                        div.onclick = () => {
-                            abrirChat(contato);
-                            fecharGaveta();
-                        };
+                        
+                        const nomeExibicao = apelidosContatos[contato] || contato;
+
                         div.innerHTML = `
-                            <div class="avatar">${contato.charAt(0)}</div>
-                            <div><strong>${contato}</strong></div>
+                            <div class="contact-info" onclick="abrirChatEFecharGaveta('${contato}')">
+                                <div class="avatar">${nomeExibicao.charAt(0)}</div>
+                                <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    <strong>${nomeExibicao}</strong>
+                                    ${apelidosContatos[contato] ? `<br><small style="color: #667781;">@${contato}</small>` : ''}
+                                </div>
+                            </div>
+                            <div class="contact-actions">
+                                <button class="contact-action-btn" onclick="editarContato('${contato}', event)" title="Editar nome">✏️</button>
+                                <button class="contact-action-btn" onclick="excluirContato('${contato}', event)" title="Excluir contato">🗑️</button>
+                            </div>
                         `;
                         lista.appendChild(div);
                     });
                 }
             });
+        }
+
+        function abrirChatEFecharGaveta(contato) {
+            abrirChat(contato);
+            fecharGaveta();
+        }
+
+        function editarContato(contato, event) {
+            event.stopPropagation();
+            const apelidoAtual = apelidosContatos[contato] || contato;
+            const novoApelido = prompt(`Digite um novo apelido para @${contato}:`, apelidoAtual);
+
+            if (novoApelido !== null && novoApelido.trim() !== "") {
+                database.ref(`usuarios/${usuarioAtual}/contatos_apelidos/${contato}`).set(novoApelido.trim())
+                    .then(() => {
+                        if (contatoAtivo === contato) {
+                            document.getElementById('nome-contato-ativo').innerText = novoApelido.trim();
+                        }
+                    });
+            }
+        }
+
+        function excluirContato(contato, event) {
+            event.stopPropagation();
+            if (confirm(`Deseja remover @${contato} dos seus contatos?`)) {
+                database.ref(`usuarios/${usuarioAtual}/contatos/${contato}`).remove();
+                database.ref(`usuarios/${usuarioAtual}/contatos_apelidos/${contato}`).remove();
+
+                if (contatoAtivo === contato) {
+                    contatoAtivo = "";
+                    document.getElementById('nome-contato-ativo').innerText = "Selecione um contato";
+                    document.getElementById('area-envio').style.display = 'none';
+                    document.getElementById('call-actions').style.display = 'none';
+                    document.getElementById('container-mensagens').innerHTML = `
+                        <div class="no-chat-selected" id="mensagem-vazia">
+                            Clique no botão "➕ Contatos" para ver seus contatos e conversar
+                        </div>
+                    `;
+                }
+            }
         }
 
         function obterChatId(u1, u2) {
@@ -806,7 +893,8 @@
 
         function abrirChat(contato) {
             contatoAtivo = contato;
-            document.getElementById('nome-contato-ativo').innerText = contato;
+            const nomeExibicao = apelidosContatos[contato] || contato;
+            document.getElementById('nome-contato-ativo').innerText = nomeExibicao;
             document.getElementById('area-envio').style.display = 'flex';
             document.getElementById('call-actions').style.display = 'flex';
             
