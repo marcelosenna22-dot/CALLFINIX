@@ -65,10 +65,58 @@
         /* CONTAINER DO APP */
         #app-container {
             display: flex;
+            flex-direction: column;
             width: 100vw;
             height: 100vh;
             max-width: 1200px;
             background-color: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* BARRA SUPERIOR GLOBAL (TOP BAR) */
+        .top-navbar {
+            background-color: #008069;
+            color: white;
+            padding: 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 50px;
+            min-height: 50px;
+            z-index: 20;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .btn-logout {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .btn-logout:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        /* CONTEÚDO PRINCIPAL (SIDEBAR + CHAT) */
+        .main-content {
+            display: flex;
+            flex: 1;
+            height: calc(100% - 50px);
             position: relative;
             overflow: hidden;
         }
@@ -93,8 +141,8 @@
             border-bottom: 1px solid #d1d7db;
             font-weight: bold;
             color: #111b21;
-            height: 60px;
-            min-height: 60px;
+            height: 50px;
+            min-height: 50px;
         }
 
         .header-actions {
@@ -513,68 +561,75 @@
 
     <div id="app-container" style="display: none;">
         
-        <div id="drawer-overlay" onclick="fecharGaveta()"></div>
-
-        <div class="sidebar" id="sidebar">
-            <div class="header">
-                <span>👤 <span id="usuario-logado"></span></span>
-                <div>
-                    <button class="action-btn" onclick="trocarUsuario()" title="Trocar de Usuário / Sair">🚪</button>
-                    <button class="action-btn" onclick="fecharGaveta()" title="Fechar Menu">✕</button>
-                </div>
+        <div class="top-navbar">
+            <div class="user-info">
+                <span>👤 Usuário:</span>
+                <span id="usuario-logado" style="text-transform: capitalize;"></span>
             </div>
-
-            <div class="add-contact-box">
-                <input type="text" id="novo-contato" placeholder="Adicionar contato...">
-                <button onclick="adicionarContato()">+</button>
-            </div>
-
-            <div class="contact-list" id="lista-contatos"></div>
+            <button class="btn-logout" onclick="trocarUsuario()" title="Trocar de Usuário / Sair">Trocar usuário 🚪</button>
         </div>
 
-        <div class="chat-area">
-            <div class="header" id="chat-header">
-                <button class="toggle-contacts-btn" onclick="abrirGaveta()">
-                    ➕ Contatos
-                </button>
+        <div class="main-content">
+            <div id="drawer-overlay" onclick="fecharGaveta()"></div>
 
-                <span id="nome-contato-ativo" style="flex:1; margin-left: 10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                    Selecione um contato
-                </span>
-
-                <div class="header-actions" id="call-actions" style="display: none;">
-                    <button class="action-btn" onclick="limparConversa()" title="Limpar Conversa (Só para mim)">🗑️</button>
-                    <button class="action-btn" onclick="iniciarChamadaVideo()" title="Chamada de Vídeo">📹</button>
+            <div class="sidebar" id="sidebar">
+                <div class="header">
+                    <span>Contatos</span>
+                    <button class="action-btn" onclick="fecharGaveta()" title="Fechar Menu">✕</button>
                 </div>
+
+                <div class="add-contact-box">
+                    <input type="text" id="novo-contato" placeholder="Adicionar contato...">
+                    <button onclick="adicionarContato()">+</button>
+                </div>
+
+                <div class="contact-list" id="lista-contatos"></div>
             </div>
 
-            <div class="messages-container" id="container-mensagens">
-                <div class="no-chat-selected" id="mensagem-vazia">
-                    Clique no botão "➕ Contatos" para ver seus contatos e conversar
-                </div>
-            </div>
+            <div class="chat-area">
+                <div class="header" id="chat-header">
+                    <button class="toggle-contacts-btn" onclick="abrirGaveta()">
+                        ➕ Contatos
+                    </button>
 
-            <div class="chat-input-area" id="area-envio" style="display: none;">
-                <input type="file" id="input-imagem" accept="image/*" style="display: none;" onchange="enviarImagem(event)">
-                <button class="btn-icon" onclick="document.getElementById('input-imagem').click()" title="Enviar Imagem">📎</button>
-                <input type="text" id="input-mensagem" placeholder="Digite uma mensagem..." onkeypress="verificarTeclaEnter(event)">
-                <button class="btn-icon btn-mic" id="btn-mic" onclick="alternarGravacao()" title="Gravar Áudio">🎙️</button>
-                <button class="btn-icon" onclick="enviarMensagem()" title="Enviar">➤</button>
-            </div>
+                    <span id="nome-contato-ativo" style="flex:1; margin-left: 10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        Selecione um contato
+                    </span>
 
-            <div id="video-modal">
-                <div class="video-grid">
-                    <video id="remote-video" autoplay playsinline></video>
-                    <video id="local-video" autoplay playsinline muted></video>
+                    <div class="header-actions" id="call-actions" style="display: none;">
+                        <button class="action-btn" onclick="limparConversa()" title="Limpar Conversa (Só para mim)">🗑️</button>
+                        <button class="action-btn" onclick="iniciarChamadaVideo()" title="Chamada de Vídeo">📹</button>
+                    </div>
                 </div>
-                <div class="call-controls">
-                    <button class="btn-call-ctrl" onclick="alternarMicrofone()" id="btn-mute" title="Mutar Microfone">🎙️</button>
-                    <button class="btn-end-call" onclick="encerrarChamada()">Desconectar</button>
-                </div>
-            </div>
 
-            <div id="image-modal" onclick="fecharModalImagem()">
-                <img id="modal-img-src" src="" alt="Imagem ampliada">
+                <div class="messages-container" id="container-mensagens">
+                    <div class="no-chat-selected" id="mensagem-vazia">
+                        Clique no botão "➕ Contatos" para ver seus contatos e conversar
+                    </div>
+                </div>
+
+                <div class="chat-input-area" id="area-envio" style="display: none;">
+                    <input type="file" id="input-imagem" accept="image/*" style="display: none;" onchange="enviarImagem(event)">
+                    <button class="btn-icon" onclick="document.getElementById('input-imagem').click()" title="Enviar Imagem">📎</button>
+                    <input type="text" id="input-mensagem" placeholder="Digite uma mensagem..." onkeypress="verificarTeclaEnter(event)">
+                    <button class="btn-icon btn-mic" id="btn-mic" onclick="alternarGravacao()" title="Gravar Áudio">🎙️</button>
+                    <button class="btn-icon" onclick="enviarMensagem()" title="Enviar">➤</button>
+                </div>
+
+                <div id="video-modal">
+                    <div class="video-grid">
+                        <video id="remote-video" autoplay playsinline></video>
+                        <video id="local-video" autoplay playsinline muted></video>
+                    </div>
+                    <div class="call-controls">
+                        <button class="btn-call-ctrl" onclick="alternarMicrofone()" id="btn-mute" title="Mutar Microfone">🎙️</button>
+                        <button class="btn-end-call" onclick="encerrarChamada()">Desconectar</button>
+                    </div>
+                </div>
+
+                <div id="image-modal" onclick="fecharModalImagem()">
+                    <img id="modal-img-src" src="" alt="Imagem ampliada">
+                </div>
             </div>
         </div>
     </div>
