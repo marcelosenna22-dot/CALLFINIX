@@ -237,6 +237,44 @@
             opacity: 1;
         }
 
+        /* MENU DE CONTEXTO DA MENSAGEM */
+        .message-menu {
+            position: absolute;
+            right: 10px;
+            bottom: 25px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: none;
+            flex-direction: column;
+            z-index: 50;
+            overflow: hidden;
+            min-width: 140px;
+        }
+
+        .message-menu.active {
+            display: flex;
+        }
+
+        .message-menu button {
+            background: none;
+            border: none;
+            padding: 10px 14px;
+            text-align: left;
+            font-size: 13px;
+            cursor: pointer;
+            color: #111b21;
+            transition: background 0.2s;
+        }
+
+        .message-menu button:hover {
+            background-color: #f0f2f5;
+        }
+
+        .message-menu button.danger {
+            color: #ea4335;
+        }
+
         .chat-img {
             max-width: 100%;
             max-height: 250px;
@@ -469,7 +507,7 @@
 
     <div id="login-screen">
         <h2>CallFinix</h2>
-        <input type="text" id="meu-usuario" placeholder="Digite seu usuário (ex: marcelo)">
+        <input type="text" id="meu-usuario" placeholder="Digite seu usuário (ex: marcelo)" onkeypress="if(event.key === 'Enter') entrar()">
         <button onclick="entrar()">Entrar</button>
     </div>
 
@@ -480,7 +518,10 @@
         <div class="sidebar" id="sidebar">
             <div class="header">
                 <span>👤 <span id="usuario-logado"></span></span>
-                <button class="action-btn" onclick="fecharGaveta()" title="Fechar Menu">✕</button>
+                <div>
+                    <button class="action-btn" onclick="trocarUsuario()" title="Trocar de Usuário / Sair">🚪</button>
+                    <button class="action-btn" onclick="fecharGaveta()" title="Fechar Menu">✕</button>
+                </div>
             </div>
 
             <div class="add-contact-box">
@@ -532,7 +573,6 @@
                 </div>
             </div>
 
-            <!-- MODAL DE VISUALIZAÇÃO DE IMAGEM -->
             <div id="image-modal" onclick="fecharModalImagem()">
                 <img id="modal-img-src" src="" alt="Imagem ampliada">
             </div>
@@ -563,6 +603,7 @@
         let escutaLimpeza = null;
         let quantidadeMensagensAnterior = 0;
         let dataLimpezaConversa = 0;
+        let msgsOcultasLocais = {};
 
         // Áudio
         let mediaRecorder = null;
@@ -577,6 +618,15 @@
 
         // Web Audio API para Som de Notificação
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Tenta reconectar automaticamente ao carregar a página
+        window.addEventListener('DOMContentLoaded', () => {
+            const usuarioSalvo = localStorage.getItem('callfinix_usuario');
+            if (usuarioSalvo) {
+                document.getElementById('meu-usuario').value = usuarioSalvo;
+                entrar(usuarioSalvo);
+            }
+        });
 
         function tocarSomNotificacao() {
             try {
@@ -620,19 +670,37 @@
             document.getElementById('drawer-overlay').classList.remove('open');
         }
 
-        async function entrar() {
-            const input = document.getElementById('meu-usuario').value.trim().toLowerCase();
+        async function entrar(usuarioParam = null) {
+            const input = usuarioParam || document.getElementById('meu-usuario').value.trim().toLowerCase();
             if (!input) return alert("Digite um nome válido!");
 
             usuarioAtual = input;
+            localStorage.setItem('callfinix_usuario', usuarioAtual);
+
             document.getElementById('usuario-logado').innerText = usuarioAtual;
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('app-container').style.display = 'flex';
 
             await solicitarPermissoesMidia();
             carregarContatos();
+            escutarMensagensOcultas();
             inicializarPeer();
             escutarChamadasRecebidas();
+        }
+
+        function trocarUsuario() {
+            if (confirm("Deseja sair e trocar de usuário?")) {
+                localStorage.removeItem('callfinix_usuario');
+                if (peer) peer.destroy();
+                location.reload();
+            }
+        }
+
+        function escutarMensagensOcultas() {
+            database.ref(`usuarios/${usuarioAtual}/mensagens_ocultas`).on('value', (snapshot) => {
+                msgsOcultasLocais = snapshot.val() || {};
+                if (contatoAtivo) abrirChat(contatoAtivo);
+            });
         }
 
         function adicionarContato() {
@@ -699,7 +767,6 @@
             escutaMensagens = chatId;
             quantidadeMensagensAnterior = 0;
 
-            // Carrega o timestamp de limpeza local do usuário
             const refLimpeza = `usuarios/${usuarioAtual}/chats_apagados/${chatId}`;
             escutaLimpeza = refLimpeza;
 
@@ -713,8 +780,13 @@
 
                     if (mensagens) {
                         const chaves = Object.keys(mensagens);
-                        // Filtra mensagens apenas após a última limpeza local
-                        const chavesVisiveis = chaves.filter(k => (mensagens[k].timestamp || 0) > dataLimpezaConversa);
+                        
+                        const chavesVisiveis = chaves.filter(k => {
+                            const eValida = (mensagens[k].timestamp || 0) > dataLimpezaConversa;
+                            const naoOculta = !msgsOcultasLocais[k];
+                            return eValida && naoOculta;
+                        });
+
                         const listaMsgs = chavesVisiveis.map(k => mensagens[k]);
 
                         if (quantidadeMensagensAnterior > 0 && listaMsgs.length > quantidadeMensagensAnterior) {
@@ -749,7 +821,13 @@
                                 <div class="time">${hora}</div>
                                 <div class="message-actions">
                                     <button class="msg-btn ${isFav}" onclick="toggleFavoritar('${key}', ${!msg.favorita})" title="Favoritar">⭐</button>
-                                    ${ehMinha ? `<button class="msg-btn" onclick="apagarMensagem('${key}')" title="Apagar">🗑️</button>` : ''}
+                                    <button class="msg-btn" onclick="toggleMenuMensagem(event, '${key}')" title="Opções">⋮</button>
+                                </div>
+
+                                <div class="message-menu" id="menu-${key}">
+                                    <button onclick="apagarMsgSoPraMim('${key}')">Apagar para mim</button>
+                                    ${ehMinha ? `<button class="danger" onclick="apagarMsgParaTodos('${key}')">Apagar para todos</button>` : ''}
+                                    <button onclick="fecharMenuMensagem('${key}')" style="border-top: 1px solid #eee; color: #666;">Sair</button>
                                 </div>
                             `;
                             container.appendChild(divMsg);
@@ -791,11 +869,39 @@
             reader.readAsDataURL(file);
         }
 
-        function apagarMensagem(msgKey) {
-            if (!contatoAtivo || !msgKey) return;
-            const chatId = obterChatId(usuarioAtual, contatoAtivo);
-            database.ref(`chats/${chatId}/${msgKey}`).remove();
+        function toggleMenuMensagem(event, msgKey) {
+            event.stopPropagation();
+            document.querySelectorAll('.message-menu').forEach(m => {
+                if (m.id !== `menu-${msgKey}`) m.classList.remove('active');
+            });
+            const menu = document.getElementById(`menu-${msgKey}`);
+            if (menu) menu.classList.toggle('active');
         }
+
+        function fecharMenuMensagem(msgKey) {
+            const menu = document.getElementById(`menu-${msgKey}`);
+            if (menu) menu.classList.remove('active');
+        }
+
+        function apagarMsgSoPraMim(msgKey) {
+            fecharMenuMensagem(msgKey);
+            if (!msgKey) return;
+            database.ref(`usuarios/${usuarioAtual}/mensagens_ocultas/${msgKey}`).set(true);
+        }
+
+        function apagarMsgParaTodos(msgKey) {
+            fecharMenuMensagem(msgKey);
+            if (!contatoAtivo || !msgKey) return;
+
+            if (confirm("Deseja apagar esta mensagem para todos?")) {
+                const chatId = obterChatId(usuarioAtual, contatoAtivo);
+                database.ref(`chats/${chatId}/${msgKey}`).remove();
+            }
+        }
+
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.message-menu').forEach(m => m.classList.remove('active'));
+        });
 
         function toggleFavoritar(msgKey, novoEstado) {
             if (!contatoAtivo || !msgKey) return;
@@ -807,7 +913,6 @@
             if (!contatoAtivo) return;
             if (confirm(`Deseja limpar as mensagens dessa conversa para você? (O outro contato continuará vendo as mensagens)`)) {
                 const chatId = obterChatId(usuarioAtual, contatoAtivo);
-                // Salva o timestamp atual apenas na conta do usuário logado
                 database.ref(`usuarios/${usuarioAtual}/chats_apagados/${chatId}`).set(Date.now());
             }
         }
@@ -816,9 +921,6 @@
             if (e.key === 'Enter') enviarMensagem();
         }
 
-        // =============================================================
-        // GRAVAÇÃO DE VOZ
-        // =============================================================
         async function alternarGravacao() {
             const btnMic = document.getElementById('btn-mic');
 
@@ -866,9 +968,6 @@
             }
         }
 
-        // =============================================================
-        // WEBRTC / PEERJS
-        // =============================================================
         function inicializarPeer() {
             peer = new Peer(usuarioAtual);
 
@@ -934,8 +1033,8 @@
                             encerrarChamada();
                         });
                     } catch (err) {
-                        alert("Erro ao abrir câmera/microfone: " + err.message);
-                        call.close();
+                        alert("Erro ao aceitar chamada: " + err.message);
+                        encerrarChamada();
                     }
                 } else {
                     call.close();
@@ -945,12 +1044,9 @@
 
         function alternarMicrofone() {
             if (localStream) {
-                const audioTrack = localStream.getAudioTracks()[0];
-                if (audioTrack) {
-                    audioTrack.enabled = !audioTrack.enabled;
-                    audioMuted = !audioTrack.enabled;
-                    document.getElementById('btn-mute').innerText = audioMuted ? '🔇' : '🎙️';
-                }
+                audioMuted = !audioMuted;
+                localStream.getAudioTracks().forEach(track => track.enabled = !audioMuted);
+                document.getElementById('btn-mute').innerText = audioMuted ? '🔇' : '🎙️';
             }
         }
 
@@ -962,10 +1058,10 @@
             }
 
             document.getElementById('video-modal').style.display = 'none';
-            document.getElementById('local-video').srcObject = null;
             document.getElementById('remote-video').srcObject = null;
-            document.getElementById('btn-mute').innerText = '🎙️';
+            document.getElementById('local-video').srcObject = null;
             audioMuted = false;
+            document.getElementById('btn-mute').innerText = '🎙️';
         }
     </script>
 </body>
